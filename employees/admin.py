@@ -1,0 +1,102 @@
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
+from django.utils.html import format_html # เครื่องมือสร้างรูปภาพ
+from .models import Employee, Attendance, LeaveRequest, Product, Order, OrderItem, Category # ✅ เพิ่ม Category เข้ามา
+from import_export.admin import ImportExportModelAdmin
+
+# ==========================================
+# 1. ปรับแต่ง User Admin (หน้ารายชื่อ User)
+# ==========================================
+class EmployeeInline(admin.StackedInline):
+    model = Employee
+    can_delete = False
+    verbose_name_plural = 'ข้อมูลพนักงาน (Employee Info)'
+    fk_name = 'user'
+
+class CustomUserAdmin(UserAdmin):
+    inlines = (EmployeeInline, )
+    list_display = ('username', 'first_name', 'last_name', 'get_department', 'get_employee_status', 'is_staff')
+
+    def get_department(self, obj):
+        if hasattr(obj, 'employee') and obj.employee:
+            return obj.employee.department
+        return "-"
+    get_department.short_description = 'แผนก'
+
+    def get_employee_status(self, obj):
+        if hasattr(obj, 'employee') and obj.employee:
+            return obj.employee.status
+        return "-"
+    get_employee_status.short_description = 'สถานะ'
+
+admin.site.unregister(User)
+admin.site.register(User, CustomUserAdmin)
+
+# ==========================================
+# 2. Employee Admin (จัดการพนักงาน)
+# ==========================================
+@admin.register(Employee)
+class EmployeeAdmin(ImportExportModelAdmin): # ✅ ระบบ Export ยังอยู่ครบ
+    list_display = ('employee_id', 'first_name', 'last_name', 'department', 'position', 'manager', 'status')
+    search_fields = ('first_name', 'last_name', 'employee_id', 'department', 'user__username')
+    list_filter = ('department', 'position', 'status')
+
+# ==========================================
+# 3. Model อื่นๆ (Attendance, Leave)
+# ==========================================
+@admin.register(Attendance)
+class AttendanceAdmin(ImportExportModelAdmin):
+    list_display = ('employee', 'date', 'time_in', 'time_out')
+    list_filter = ('date', 'employee__department')
+
+@admin.register(LeaveRequest)
+class LeaveRequestAdmin(ImportExportModelAdmin):
+    list_display = ('employee', 'leave_type', 'start_date', 'end_date', 'status')
+    list_filter = ('status', 'leave_type')
+
+# ==========================================
+# 4. 🛒 ระบบ POS (อัปเกรดใหม่ล่าสุด!) 🚀
+# ==========================================
+
+# ✅ ส่วนจัดการหมวดหมู่ (สร้างเมนูใหม่ให้เลย)
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    # ✅ ใช้ field 'category' ตัวจริง (ไม่ต้องใช้ get_category แบบเก่าแล้ว)
+    list_display = ('show_image', 'name', 'category', 'price', 'stock', 'is_active')
+
+    # แก้ไขหมวดหมู่ได้ทันทีจากหน้ารวม (List Editable)
+    list_editable = ('price', 'stock', 'is_active', 'category')
+
+    # ค้นหาได้ทั้งชื่อสินค้า และ ชื่อหมวดหมู่
+    search_fields = ('name', 'category__name') 
+    
+    # ตัวกรองด้านขวา
+    list_filter = ('category', 'is_active')
+
+    # ฟังก์ชันโชว์รูปภาพ (ใช้แบบกล่องสีเทา No Img ตามที่คุณชอบ)
+    def show_image(self, obj):
+        if obj.image:
+            # กรณีมีรูปจริง
+            return format_html('<img src="{}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;">', obj.image.url)
+        # กรณีไม่มีรูป
+        return format_html('<img src="https://placehold.co/50x50?text=No+Img" style="width: 50px; height: 50px; border-radius: 5px; opacity: 0.5;">')
+
+    show_image.short_description = 'รูปตัวอย่าง'
+
+# ตัวจัดการ Order (คงเดิม)
+class OrderItemInline(admin.TabularInline):
+    model = OrderItem
+    extra = 0
+    readonly_fields = ('get_total_item_price',)
+
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = ('id', 'employee', 'total_amount', 'order_date')
+    inlines = [OrderItemInline]
+    readonly_fields = ('order_date',)

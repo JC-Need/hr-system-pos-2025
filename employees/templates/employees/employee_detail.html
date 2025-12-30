@@ -1,0 +1,201 @@
+{% extends 'employees/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container mt-4 pb-5">
+
+    <div class="card border-0 shadow mb-4 overflow-hidden">
+        <div class="card-header border-0 p-4 text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div class="d-flex align-items-center">
+                    <div class="bg-white rounded-circle d-flex align-items-center justify-content-center shadow-sm me-4" style="width: 100px; height: 100px; border: 4px solid rgba(255,255,255,0.3);">
+                        {% if employee.image %}
+                            <img src="{{ employee.image.url }}" class="rounded-circle" width="100%" height="100%" style="object-fit: cover;">
+                        {% else %}
+                            <i class="fas fa-user fa-3x text-secondary"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h2 class="fw-bold mb-1">{{ employee.first_name }} {{ employee.last_name }}</h2>
+                        <span class="badge bg-warning text-dark mb-2 px-3 py-2 rounded-pill shadow-sm">{{ employee.position }}</span>
+                        <div class="small opacity-75 font-monospace">ID: {{ employee.employee_id }}</div>
+                    </div>
+                </div>
+                
+                <div class="text-end mt-3 mt-md-0">
+                    <h2 class="fw-bold mb-0">฿ {{ employee.base_allowance|intcomma }}</h2>
+                    <small class="opacity-75">เงินเดือนปัจจุบัน</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body p-4">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <small class="text-muted fw-bold text-uppercase"><i class="far fa-building me-1"></i> แผนก (Department)</small>
+                    <div class="fs-5 fw-bold text-dark">{{ employee.department }}</div>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted fw-bold text-uppercase"><i class="fas fa-toggle-on me-1"></i> สถานะ (Status)</small>
+                    <div class="fs-5">
+                        {% if employee.status|lower == 'active' or employee.status == 'ทำงานปกติ' %}
+                            <span class="text-success fw-bold"><i class="fas fa-check-circle"></i> ทำงานปกติ</span>
+                        {% else %}
+                            <span class="text-danger fw-bold"><i class="fas fa-times-circle"></i> {{ employee.status }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted fw-bold text-uppercase"><i class="fas fa-gift me-1"></i> โบนัสคงเหลือ</small>
+                    <div class="fs-5 fw-bold text-primary">฿ {{ formatted_bonus }} <i class="far fa-question-circle text-muted small" title="หัก: {{ total_deduct }}"></i></div>
+                    <small class="text-danger" style="font-size: 0.8rem;">(หักรวม: {{ total_deduct }})</small>
+                </div>
+            </div>
+
+            <hr class="my-4 opacity-10">
+
+            <h6 class="text-secondary fw-bold mb-3"><i class="fas fa-bolt me-1"></i> เมนูด่วน (Quick Actions)</h6>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <a href="{% url 'leave_create' %}" class="btn btn-warning w-100 py-3 fw-bold shadow-sm text-dark h-100 d-flex align-items-center justify-content-center">
+                        <i class="fas fa-paper-plane me-2 fa-lg"></i> ยื่นใบลา
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="{% url 'attendance_action' employee.id %}" class="btn btn-success w-100 py-3 fw-bold shadow-sm h-100 d-flex align-items-center justify-content-center">
+                        <i class="fas fa-fingerprint me-2 fa-lg"></i> ลงเวลา (Check-in)
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="{% url 'employee_payslip' employee.id %}" class="btn btn-primary w-100 py-3 fw-bold shadow-sm h-100 d-flex align-items-center justify-content-center">
+                        <i class="fas fa-print me-2 fa-lg"></i> สลิปเงินเดือน
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4 bg-light">
+        <div class="card-body py-3">
+            <form method="get" class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <span class="fw-bold text-secondary"><i class="fas fa-filter me-1"></i> กรองประวัติ:</span>
+                </div>
+                <div class="col-auto">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="far fa-calendar-alt"></i></span>
+                        <input type="text" name="start_date" class="form-control datepicker border-start-0" placeholder="วันที่เริ่มต้น" value="{{ filter_start|default:'' }}">
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0"><i class="far fa-calendar-alt"></i></span>
+                        <input type="text" name="end_date" class="form-control datepicker border-start-0" placeholder="วันที่สิ้นสุด" value="{{ filter_end|default:'' }}">
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary px-4 shadow-sm"><i class="fas fa-search"></i> ค้นหา</button>
+                    {% if filter_start %}
+                        <a href="{% url 'employee_detail' employee.id %}" class="btn btn-outline-secondary ms-1"><i class="fas fa-undo"></i> ล้างค่า</a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card shadow border-0 h-100">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-history me-1"></i> ประวัติการลา (Leave History)</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="ps-3">วันที่ลา</th>
+                                    <th>ประเภท</th>
+                                    <th class="text-end pe-3">สถานะ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in leave_list %}
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="fw-bold text-dark">{{ leave.start_date|date:"d/m/Y" }} - {{ leave.end_date|date:"d/m/Y" }}</div>
+                                        <small class="text-muted">"{{ leave.reason|truncatechars:20 }}"</small>
+                                    </td>
+                                    <td>
+                                        {% if leave.leave_type == 'SICK' %}<span class="badge bg-danger">ลาป่วย</span>
+                                        {% elif leave.leave_type == 'BUSINESS' %}<span class="badge bg-warning text-dark">ลากิจ</span>
+                                        {% else %}<span class="badge bg-info text-dark">พักร้อน</span>{% endif %}
+                                    </td>
+                                    <td class="text-end pe-3">
+                                        {% if leave.status == 'APPROVED' %}<i class="fas fa-check-circle text-success"></i> อนุมัติ
+                                        {% elif leave.status == 'REJECTED' %}<i class="fas fa-times-circle text-danger"></i> ไม่อนุมัติ
+                                        {% else %}<i class="fas fa-clock text-warning"></i> รออนุมัติ{% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-center py-4 text-muted">ยังไม่มีประวัติการลา</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow border-0 h-100">
+                <div class="card-header bg-dark text-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold"><i class="fas fa-clock me-1"></i> บันทึกเวลาเข้า-ออก (Attendance)</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-striped mb-0 align-middle">
+                            <thead class="table-secondary sticky-top">
+                                <tr>
+                                    <th class="ps-3">วันที่</th>
+                                    <th>เวลาเข้า</th>
+                                    <th>เวลาออก</th>
+                                    <th class="text-end pe-3">สถานะ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for att in attendance_list %}
+                                <tr>
+                                    <td class="ps-3 fw-bold">{{ att.date|date:"d/m/Y" }}</td>
+                                    <td class="text-success">{{ att.time_in|time:"H:i"|default:"-" }}</td>
+                                    <td class="text-danger">{{ att.time_out|time:"H:i"|default:"-" }}</td>
+                                    <td class="text-end pe-3">
+                                        <span class="badge bg-{{ att.status_color }}">{{ att.status_label }}</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center py-4 text-muted">ไม่พบข้อมูลการลงเวลา</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script>
+<script>
+    flatpickr(".datepicker", {
+        dateFormat: "Y-m-d", // ส่งค่าไป Server
+        altInput: true,      // แสดงผลแยก
+        altFormat: "d/m/Y",  // รูปแบบที่คนเห็น (วัน/เดือน/ปี)
+        locale: "th",        // ภาษาไทย
+        allowInput: true
+    });
+</script>
+{% endblock %}

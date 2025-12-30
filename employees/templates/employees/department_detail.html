@@ -1,0 +1,68 @@
+{% extends 'employees/base.html' %}
+
+{% block content %}
+<div class="card shadow-sm mt-4 border-0">
+    <div class="card-header bg-white py-3">
+        <h3 class="mb-0 text-dark fw-bold">
+            <span class="badge bg-primary fs-5 me-2">แผนก</span> {{ dept_name }}
+        </h3>
+    </div>
+    
+    <div class="card-body">
+        <h6 class="text-primary mb-3">
+            <i class="fas fa-users me-1"></i> รายชื่อพนักงานในแผนก ({{ employees.count }} คน)
+        </h6>
+        
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>รหัส</th>
+                        <th>ชื่อ-นามสกุล</th>
+                        <th>ตำแหน่ง</th>
+                        <th>สถานะ</th>
+                        <th>จัดการ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for emp in employees %}
+                    <tr>
+                        <td><span class="badge bg-secondary">{{ emp.employee_id }}</span></td>
+                        <td class="fw-bold">
+                            {% if emp.image %}
+                                <img src="{{ emp.image.url }}" class="rounded-circle me-2" width="35" height="35" style="object-fit: cover;">
+                            {% else %}
+                                <div class="rounded-circle bg-light d-inline-flex justify-content-center align-items-center me-2" style="width: 35px; height: 35px;">
+                                    <i class="fas fa-user text-secondary"></i>
+                                </div>
+                            {% endif %}
+                            {{ emp.first_name }} {{ emp.last_name }}
+                        </td>
+                        <td>{{ emp.position }}</td>
+                        <td>
+                            {% if emp.status|lower == 'active' or emp.status == 'ทำงานปกติ' %}
+                                <span class="badge bg-success rounded-pill">ทำงานปกติ</span>
+                            {% else %}
+                                <span class="badge bg-danger rounded-pill">{{ emp.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'employee_detail' emp.id %}" class="btn btn-info btn-sm text-white shadow-sm">
+                                <i class="fas fa-eye me-1"></i> ดูประวัติ
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-5">
+                            <i class="fas fa-folder-open fa-2x mb-3 opacity-25"></i><br>
+                            ยังไม่มีพนักงานในแผนกนี้
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

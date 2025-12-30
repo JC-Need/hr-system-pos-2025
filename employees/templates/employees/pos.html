@@ -1,0 +1,433 @@
+{% extends 'employees/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<style>
+    /* =========================================
+       🎨 New Design: Search + Dropdown Style
+       ========================================= */
+    
+    .product-grid-container { height: 75vh; overflow-y: auto; }
+    .cart-items-container { height: 60vh; overflow-y: auto; }
+    
+    /* 1. แถบเครื่องมือด้านบน (Toolbar) */
+    .toolbar-wrapper {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    /* 2. ช่องค้นหา (Search Bar) */
+    .search-wrapper {
+        flex-grow: 1; /* ยืดเต็มพื้นที่ที่เหลือ */
+        background: #f1f3f5;
+        border-radius: 50px; /* ทรงแคปซูล */
+        padding: 8px 20px;
+        display: flex;
+        align-items: center;
+        transition: all 0.3s;
+        border: 1px solid transparent;
+    }
+    .search-wrapper:focus-within {
+        background: #fff;
+        border-color: #0d6efd;
+        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.1);
+    }
+    .search-input {
+        border: none;
+        background: transparent;
+        outline: none;
+        width: 100%;
+        margin-left: 10px;
+        font-size: 1rem;
+        color: #495057;
+    }
+
+    /* 3. ปุ่ม Dropdown และปุ่ม All */
+    .filter-btn {
+        border-radius: 50px;
+        padding: 8px 20px;
+        font-weight: 600;
+        white-space: nowrap;
+        transition: all 0.2s;
+        border: 1px solid #dee2e6;
+        background-color: #fff;
+        color: #555;
+    }
+    .filter-btn:hover, .filter-btn.show {
+        background-color: #e9ecef;
+        color: #000;
+        transform: translateY(-1px);
+    }
+    
+    /* ปุ่ม Active (สีน้ำเงิน) */
+    .filter-btn.active-filter {
+        background-color: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+        box-shadow: 0 4px 10px rgba(13, 110, 253, 0.3);
+    }
+
+    /* Dropdown Menu แต่งสวยๆ */
+    .custom-dropdown-menu {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        padding: 10px;
+        min-width: 200px;
+    }
+    .dropdown-item {
+        border-radius: 8px;
+        padding: 8px 15px;
+        font-weight: 500;
+        color: #555;
+        transition: all 0.2s;
+    }
+    .dropdown-item:hover {
+        background-color: #f0f8ff; /* สีฟ้าอ่อนๆ ตอนชี้ */
+        color: #0d6efd;
+        padding-left: 20px; /* ขยับขวานิดนึงเพิ่มลูกเล่น */
+    }
+    .dropdown-item.active {
+        background-color: #0d6efd;
+        color: white;
+    }
+
+    /* -----------------------------------------
+       Card Styling (คงเดิมให้สวยงาม)
+       ----------------------------------------- */
+    .product-card { 
+        cursor: pointer;
+        transition: all 0.2s; 
+        border: 1px solid #f8f9fa;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .product-card:hover { 
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important; 
+        border-color: #bee5eb;
+    }
+    .product-img-wrapper {
+        height: 130px;
+        background-color: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+    }
+    .product-img { width: 100%; height: 100%; object-fit: cover; }
+    .price-badge { 
+        position: absolute;
+        top: 10px; right: 10px; 
+        background: rgba(255, 255, 255, 0.95); 
+        color: #333; 
+        padding: 4px 10px; border-radius: 20px; font-weight: 800;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        font-size: 0.85rem;
+    }
+    .stock-badge {
+        font-size: 0.75rem;
+        background-color: #e9ecef;
+        color: #495057;
+        padding: 2px 8px;
+        border-radius: 4px;
+    }
+</style>
+
+<div class="container-fluid py-3" style="background-color: #f4f6f9; min-height: 100vh;">
+    <div class="row g-3">
+        
+        <div class="col-lg-8 col-md-7">
+            <div class="card shadow-sm border-0 h-100" style="border-radius: 15px;">
+                
+                <div class="card-header bg-white py-3 border-0" style="border-radius: 15px 15px 0 0;">
+                    <div class="toolbar-wrapper">
+                        
+                        <div class="search-wrapper">
+                            <i class="fas fa-search text-muted"></i>
+                            <input type="text" id="searchInput" class="search-input" placeholder="ค้นหาชื่อสินค้า..." onkeyup="filterProducts()">
+                        </div>
+
+                        <button class="btn filter-btn active-filter" id="btn-all" onclick="resetCategory()">
+                            <i class="fas fa-th-large me-1"></i> ทั้งหมด
+                        </button>
+
+                        <div class="dropdown">
+                            <button class="btn filter-btn dropdown-toggle" type="button" id="categoryDropdownBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                เลือกหมวดหมู่
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end custom-dropdown-menu" aria-labelledby="categoryDropdownBtn">
+                                {% for cat in categories %}
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="selectCategory('{{ cat.name }}', this)">
+                                        {{ cat.name }}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="card-body bg-white product-grid-container pt-0">
+                    <div class="row g-3" id="productGrid">
+                        {% for p in products %}
+                        <div class="col-6 col-lg-3 col-xl-3 product-item" 
+                             data-name="{{ p.name }}" 
+                             data-category="{{ p.category.name|default:'ทั่วไป' }}"> 
+                            
+                            <div class="card product-card h-100 position-relative bg-white" 
+                                 onclick="addToCart({{ p.id }}, '{{ p.name }}', {{ p.price }})">
+                                
+                                <div class="product-img-wrapper mb-2">
+                                    {% if p.image %}
+                                        <img src="{{ p.image.url }}" class="product-img">
+                                    {% else %}
+                                        <img src="https://placehold.co/150x150?text=No+Img" class="product-img" style="opacity: 0.5;">
+                                    {% endif %}
+                                    <span class="price-badge">฿{{ p.price|floatformat:0 }}</span>
+                                </div>
+
+                                <div class="text-center p-2">
+                                    <div class="text-uppercase text-muted fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">
+                                        {{ p.category.name|default:"ทั่วไป"|truncatechars:15 }}
+                                    </div>
+                                    <h6 class="fw-bold mb-1 text-dark text-truncate">{{ p.name }}</h6>
+                                    <span class="stock-badge">
+                                        <i class="fas fa-box-open me-1"></i> {{ p.stock }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-center py-5 text-muted">
+                            <i class="fas fa-box-open fa-3x mb-3 opacity-25"></i>
+                            <h4>คลังสินค้าว่างเปล่า</h4>
+                            <p>ยังไม่มีสินค้าในระบบ</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-5">
+            <div class="card shadow border-0 h-100" style="border-radius: 15px;">
+                <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center" style="border-radius: 15px 15px 0 0;">
+                    <h5 class="m-0"><i class="fas fa-shopping-cart me-2"></i>รายการขาย</h5>
+                    <span class="badge bg-warning text-dark rounded-pill shadow-sm" id="cart-count">0 ชิ้น</span>
+                </div>
+                
+                <div class="card-body bg-white p-0 cart-items-container">
+                    <table class="table table-hover mb-0 align-middle">
+                        <tbody id="cart-table-body"></tbody>
+                    </table>
+                    
+                    <div id="empty-cart-msg" class="text-center py-5 mt-5">
+                        <div class="text-muted opacity-25 mb-3">
+                            <i class="fas fa-basket-shopping fa-4x"></i>
+                        </div>
+                        <h6 class="text-muted fw-bold">เลือกสินค้าจากฝั่งซ้าย</h6>
+                        <small class="text-muted">เพื่อเพิ่มรายการลงในบิล</small>
+                    </div>
+                </div>
+
+                <div class="card-footer bg-light border-top p-4" style="border-radius: 0 0 15px 15px;">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">ยอดรวม</span>
+                        <span class="fw-bold" id="sub-total">0.00</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3 align-items-end">
+                        <span class="h5 fw-bold text-dark mb-0">สุทธิ (Total)</span>
+                        <span class="h2 fw-bold text-primary mb-0" id="total-amount">฿0.00</span>
+                    </div>
+                    
+                    <button class="btn btn-success w-100 py-3 fw-bold fs-5 shadow rounded-pill btn-action" onclick="checkout()">
+                        <i class="fas fa-check-circle me-2"></i> รับเงิน (Checkout)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let cart = [];
+
+    // 1. ตะกร้าสินค้า
+    function addToCart(id, name, price) {
+        let existingItem = cart.find(item => item.id === id);
+        if (existingItem) {
+            existingItem.quantity += 1;
+        } else {
+            cart.push({ id: id, name: name, price: price, quantity: 1 });
+        }
+        renderCart();
+    }
+
+    function renderCart() {
+        const tbody = document.getElementById('cart-table-body');
+        const emptyMsg = document.getElementById('empty-cart-msg');
+        const totalEl = document.getElementById('total-amount');
+        const countEl = document.getElementById('cart-count');
+        const subTotalEl = document.getElementById('sub-total');
+        
+        tbody.innerHTML = '';
+        let total = 0;
+        let count = 0;
+
+        if (cart.length === 0) {
+            emptyMsg.style.display = 'block';
+        } else {
+            emptyMsg.style.display = 'none';
+            cart.forEach((item, index) => {
+                let itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                count += item.quantity;
+
+                let row = `
+                    <tr>
+                        <td class="ps-3">
+                            <div class="fw-bold text-dark text-truncate" style="max-width: 140px;">${item.name}</div>
+                            <div class="text-muted small">@${item.price}</div>
+                        </td>
+                        <td class="text-center" style="width: 100px;">
+                            <div class="input-group input-group-sm">
+                                <button class="btn btn-outline-light text-dark border" onclick="updateQty(${index}, -1)">-</button>
+                                <input type="text" class="form-control text-center bg-white border-top border-bottom" value="${item.quantity}" readonly>
+                                <button class="btn btn-outline-light text-dark border" onclick="updateQty(${index}, 1)">+</button>
+                            </div>
+                        </td>
+                        <td class="text-end pe-3 fw-bold text-dark">
+                            ${itemTotal.toLocaleString()}
+                        </td>
+                        <td style="width: 30px;">
+                            <button class="btn btn-link text-danger p-0 opacity-50 hover-opacity-100" onclick="removeFromCart(${index})">
+                                <i class="fas fa-times-circle"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        let formattedTotal = '฿' + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        totalEl.innerText = formattedTotal;
+        subTotalEl.innerText = total.toLocaleString(undefined, {minimumFractionDigits: 2});
+        countEl.innerText = count + " ชิ้น";
+    }
+
+    function updateQty(index, change) {
+        if (cart[index].quantity + change > 0) {
+            cart[index].quantity += change;
+        } else {
+            removeFromCart(index);
+            return;
+        }
+        renderCart();
+    }
+
+    function removeFromCart(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+
+    // ==========================================
+    // 2. ระบบกรองหมวดหมู่แบบใหม่ (Dropdown)
+    // ==========================================
+    
+    // เมื่อกดปุ่ม "ทั้งหมด"
+    function resetCategory() {
+        // 1. ปรับหน้าตาปุ่ม
+        document.getElementById('btn-all').classList.add('active-filter');
+        let dropdownBtn = document.getElementById('categoryDropdownBtn');
+        dropdownBtn.classList.remove('active-filter');
+        dropdownBtn.innerText = "เลือกหมวดหมู่"; // คืนค่าข้อความเดิม
+
+        // 2. โชว์สินค้าทั้งหมด
+        let items = document.querySelectorAll('.product-item');
+        items.forEach(item => {
+            item.style.display = 'block';
+        });
+    }
+
+    // เมื่อเลือกรายการใน Dropdown
+    function selectCategory(categoryName, element) {
+        // 1. ปรับหน้าตาปุ่ม
+        document.getElementById('btn-all').classList.remove('active-filter');
+        let dropdownBtn = document.getElementById('categoryDropdownBtn');
+        dropdownBtn.classList.add('active-filter');
+        dropdownBtn.innerText = categoryName; // เปลี่ยนชื่อปุ่มเป็นชื่อหมวดหมู่ที่เลือก
+
+        // 2. กรองสินค้า
+        let items = document.querySelectorAll('.product-item');
+        items.forEach(item => {
+            let itemCat = item.getAttribute('data-category');
+            if (itemCat.trim() === categoryName.trim()) {
+                item.style.display = 'block';
+                // Animation เล็กน้อย
+                item.style.opacity = '0';
+                setTimeout(() => item.style.opacity = '1', 50);
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    function filterProducts() {
+        let input = document.getElementById('searchInput').value.toLowerCase();
+        let items = document.querySelectorAll('.product-item');
+        
+        items.forEach(item => {
+            let name = item.getAttribute('data-name').toLowerCase();
+            // ถ้า Search ให้โชว์หมด โดยดูแค่ชื่อ (ไม่สนหมวดหมู่ชั่วคราว เพื่อความง่าย)
+            if (name.includes(input)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    // 3. จบการขาย
+    function checkout() {
+        if (cart.length === 0) {
+            alert('กรุณาเลือกสินค้าก่อนครับ');
+            return;
+        }
+
+        if (!confirm('ยืนยันรับเงินและบันทึกยอดขาย?')) return;
+
+        let totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+        fetch("{% url 'pos_checkout' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ 
+                cart: cart,
+                total_amount: totalAmount
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ ขายสำเร็จ! (Order ID: ' + data.order_id + ')');
+                window.location.reload(); 
+            } else {
+                alert('❌ เกิดข้อผิดพลาด: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ เชื่อมต่อ Server ไม่ได้');
+        });
+    }
+</script>
+{% endblock %}
