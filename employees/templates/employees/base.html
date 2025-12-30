@@ -16,7 +16,7 @@
         }
         .navbar-brand { font-weight: bold; letter-spacing: 1px; }
         .card { border: none; border-radius: 10px; }
-        
+
         /* ปรับแต่ง Navbar ให้ปุ่มดูดี */
         .btn-nav { border-radius: 20px; font-weight: 600; }
     </style>
@@ -35,15 +35,13 @@
 
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav w-100 align-items-center">
-                    
+
                     {% if user.is_authenticated %}
-                        {% if request.resolver_match.url_name != 'dashboard' %}
-                        <li class="nav-item ms-3">
-                            <a class="btn btn-success btn-sm btn-nav px-3 shadow-sm" href="{% url 'dashboard' %}">
-                                <i class="fas fa-tachometer-alt me-1"></i> กลับหน้าหลัก (Dashboard)
+                        {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'purchasing_dashboard' and request.resolver_match.url_name != 'inventory_dashboard' %}
+                            <a href="{% url 'dashboard' %}" class="btn btn-sm btn-success rounded-pill fw-bold shadow-sm">
+                                <i class="fas fa-home me-1"></i> กลับหน้าหลัก (Dashboard)
                             </a>
-                        </li>
-                        {% endif %}
+                    {% endif %}
 
                         <li class="nav-item me-auto"></li>
 

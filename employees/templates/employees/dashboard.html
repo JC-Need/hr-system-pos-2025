@@ -1,5 +1,5 @@
 {% extends 'employees/base.html' %}
-{% load humanize %} 
+{% load humanize %}
 
 {% block content %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -9,21 +9,20 @@
 </style>
 
 <div class="container-fluid mt-4 pb-5">
-    
+
     {% if request.user.is_superuser or request.user.username == 'jcneed1975' %}
     <div class="row mb-4">
         <div class="col-12 text-center">
             <div class="card shadow-sm p-3 border-0 bg-light d-inline-block rounded-pill">
                 <div class="btn-group" role="group">
-                    
                     <a href="{% url 'dashboard' %}?view=all" class="btn rounded-pill px-4 fw-bold {% if not view_mode or view_mode == 'all' %}btn-dark{% else %}btn-outline-dark border-0{% endif %}">
                         <i class="fas fa-tachometer-alt me-2"></i> ภาพรวม (CEO)
                     </a>
 
                     {% for dept in all_departments %}
-                        <a href="{% url 'dashboard' %}?view={{ dept }}" class="btn rounded-pill px-3 fw-bold ms-1 mb-2
-                           {% if view_mode == dept %}btn-primary shadow{% else %}btn-outline-secondary border-0{% endif %}">
-                            
+                        <a href="{% if dept == 'Purchasing' %}{% url 'purchasing_dashboard' %}{% elif dept == 'Warehouse' %}{% url 'inventory_dashboard' %}{% else %}{% url 'dashboard' %}?view={{ dept }}{% endif %}"
+                           class="btn rounded-pill px-3 fw-bold ms-1 mb-2 {% if view_mode == dept %}btn-primary shadow{% else %}btn-outline-secondary border-0{% endif %}">
+
                             {% if dept == 'Sales' %}
                                 <i class="fas fa-store me-1"></i> ฝ่ายขาย (Sales)
                             {% elif dept == 'Human Resources' %}
@@ -40,16 +39,16 @@
                                 <i class="fas fa-cogs me-1"></i> ฝ่ายปฏิบัติการ (Ops)
                             {% elif dept == 'Management' %}
                                 <i class="fas fa-tie me-1"></i> ฝ่ายบริหาร (Mgt)
+                            {% elif dept == 'Purchasing' %}
+                                <i class="fas fa-shopping-cart me-1"></i> จัดซื้อ (Purchasing)
                             {% else %}
                                 <i class="fas fa-building me-1"></i> {{ dept }}
                             {% endif %}
-
                         </a>
                     {% endfor %}
-                    
                 </div>
             </div>
-            
+
             <div class="mt-2 text-muted small">
                 <i class="fas fa-eye me-1"></i> กำลังแสดงผล: <strong>{{ current_dept_view|default:"ภาพรวมบริษัท" }}</strong>
             </div>
@@ -82,29 +81,26 @@
             </div>
         </div>
     </div>
-    
+
     <div class="row g-2 align-items-center mb-3">
         <div class="col-12">
             <div class="card shadow-sm border-0 bg-light">
                 <div class="card-body py-2">
                     <form method="get" class="row g-2 align-items-center">
                         <input type="hidden" name="view" value="{{ view_mode }}">
-                        
+
                         <div class="col-auto"><span class="fw-bold text-success"><i class="fas fa-filter me-1"></i> ช่วงเวลาขาย:</span></div>
                         <div class="col-auto"><div class="input-group input-group-sm"><span class="input-group-text bg-white">เริ่ม</span><input type="text" name="sales_start" class="form-control datepicker text-center" value="{{ filter_start }}" autocomplete="off" placeholder="วว/ดด/ปปปป"></div></div>
                         <div class="col-auto"><div class="input-group input-group-sm"><span class="input-group-text bg-white">ถึง</span><input type="text" name="sales_end" class="form-control datepicker text-center" value="{{ filter_end }}" autocomplete="off" placeholder="วว/ดด/ปปปป"></div></div>
                         <div class="col-auto"><button type="submit" class="btn btn-primary btn-sm px-3 shadow-sm">คำนวณ</button></div>
 
                         <div class="col-auto ps-3 border-start ms-2">
-                            <a href="?view={{ view_mode }}&sales_start={{ today|date:'Y-m-d' }}&sales_end={{ today|date:'Y-m-d' }}" 
-                               class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" 
-                               title="ดูยอดขายเฉพาะวันนี้">
+                            <a href="?view={{ view_mode }}&sales_start={{ today|date:'Y-m-d' }}&sales_end={{ today|date:'Y-m-d' }}"
+                               class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" title="ดูยอดขายเฉพาะวันนี้">
                                 <i class="fas fa-calendar-day text-primary"></i> วันนี้
                             </a>
-
-                            <a href="?view={{ view_mode }}&sales_start={{ today|date:'Y-m-01' }}&sales_end={{ today|date:'Y-m-t' }}" 
-                               class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" 
-                               title="ดูยอดขายทั้งเดือนนี้">
+                            <a href="?view={{ view_mode }}&sales_start={{ today|date:'Y-m-01' }}&sales_end={{ today|date:'Y-m-t' }}"
+                               class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" title="ดูยอดขายทั้งเดือนนี้">
                                 <i class="fas fa-calendar-alt text-success"></i> เดือนนี้
                             </a>
                         </div>
@@ -121,7 +117,6 @@
         <div class="col-md-3"><div class="card bg-white border-start border-4 border-secondary shadow-sm h-100 py-2"><div class="card-body"><div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">สินค้าทั้งหมด</div><div class="h3 mb-0 fw-bold text-gray-800">{{ total_products }} รายการ</div></div></div></div>
     </div>
     {% endif %}
-
 
     {% if show_hr %}
     <div class="row mb-4">
@@ -157,7 +152,6 @@
     </div>
     {% endif %}
 
-
     <div class="row">
         <div class="col-lg-8 mb-4">
             {% if show_hr %}
@@ -186,54 +180,58 @@
             </div>
             {% endif %}
 
-           {% if request.user.is_superuser or request.user.username == 'jcneed1975' or view_mode == 'Warehouse' %}
-    <div class="row mb-4">
-        <div class="row">
-        
-        <div class="col-md-6 mb-4">
-            <div class="card border-0 shadow-sm bg-success text-white h-100 overflow-hidden" style="background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%);">
-                <div class="card-body p-4 position-relative">
-                    <h4 class="fw-bold mb-1"><i class="fas fa-warehouse me-2"></i>ระบบคลังสินค้า</h4>
-                    <p class="mb-4 opacity-75">จัดการสต็อกสินค้าและวัตถุดิบ</p>
-                    
-                    <div class="d-grid gap-2" style="z-index: 2; position: relative;">
-                        <a href="{% url 'inventory_dashboard' %}?type=FG" class="btn btn-light text-success fw-bold text-start shadow-sm">
-                            <i class="fas fa-box-open me-2"></i> คลังสินค้าพร้อมขาย (FG)
-                        </a>
-                        <a href="{% url 'inventory_dashboard' %}?type=RM" class="btn btn-warning text-dark fw-bold text-start shadow-sm">
-                            <i class="fas fa-layer-group me-2"></i> คลังวัตถุดิบ (Raw Material)
-                        </a>
+           {% if request.user.is_superuser or request.user.username == 'jcneed1975' or view_mode == 'Warehouse' or view_mode == 'Purchasing' %}
+            <div class="row mb-4">
+                <div class="row">
+
+                    {% if view_mode == 'all' or view_mode == 'Warehouse' %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card border-0 shadow-sm bg-success text-white h-100 overflow-hidden" style="background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%);">
+                            <div class="card-body p-4 position-relative">
+                                <h4 class="fw-bold mb-1"><i class="fas fa-warehouse me-2"></i>ระบบคลังสินค้า</h4>
+                                <p class="mb-4 opacity-75">จัดการสต็อกสินค้าและวัตถุดิบ</p>
+                                <div class="d-grid gap-2" style="z-index: 2; position: relative;">
+                                    <a href="{% url 'inventory_dashboard' %}?type=FG" class="btn btn-light text-success fw-bold text-start shadow-sm">
+                                        <i class="fas fa-box-open me-2"></i> คลังสินค้าพร้อมขาย (FG)
+                                    </a>
+                                    <a href="{% url 'inventory_dashboard' %}?type=RM" class="btn btn-warning text-dark fw-bold text-start shadow-sm">
+                                        <i class="fas fa-layer-group me-2"></i> คลังวัตถุดิบ (Raw Material)
+                                    </a>
+                                </div>
+                                <i class="fas fa-dolly position-absolute text-white" style="font-size: 120px; opacity: 0.15; right: -10px; bottom: -20px;"></i>
+                            </div>
+                        </div>
                     </div>
-                    <i class="fas fa-dolly position-absolute text-white" style="font-size: 120px; opacity: 0.15; right: -10px; bottom: -20px;"></i>
+                    {% endif %}
+
+                    {% if view_mode == 'all' or view_mode == 'Purchasing' %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card border-0 shadow-sm bg-primary text-white h-100 overflow-hidden" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);">
+                            <div class="card-body p-4 position-relative">
+                                <h4 class="fw-bold mb-1"><i class="fas fa-shopping-cart me-2"></i>แผนกจัดซื้อ</h4>
+                                <p class="mb-4 opacity-75">ออกใบสั่งซื้อและจัดการคู่ค้า</p>
+
+                                <div class="d-grid gap-2" style="z-index: 2; position: relative;">
+                                    <a href="{% url 'purchasing_dashboard' %}" class="btn btn-light text-primary fw-bold text-start shadow-sm position-relative overflow-hidden">
+                                        <i class="fas fa-chart-line me-2"></i> แดชบอร์ดจัดซื้อ (Dashboard)
+                                        <span class="position-absolute top-0 start-100 translate-middle p-2 bg-danger border border-light rounded-circle">
+                                            <span class="visually-hidden">New alerts</span>
+                                        </span>
+                                    </a>
+                                    <a href="{% url 'supplier_list' %}" class="btn btn-info text-white fw-bold text-start shadow-sm">
+                                        <i class="fas fa-truck me-2"></i> รายชื่อคู่ค้า (Suppliers)
+                                    </a>
+                                </div>
+                                <i class="fas fa-handshake position-absolute text-white" style="font-size: 120px; opacity: 0.15; right: -10px; bottom: -20px;"></i>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                 </div>
             </div>
-        </div>
+            {% endif %}
 
-        <div class="col-md-6 mb-4">
-            <div class="card border-0 shadow-sm bg-primary text-white h-100 overflow-hidden" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);">
-                <div class="card-body p-4 position-relative">
-                    <h4 class="fw-bold mb-1"><i class="fas fa-shopping-cart me-2"></i>แผนกจัดซื้อ</h4>
-                    <p class="mb-4 opacity-75">ออกใบสั่งซื้อและจัดการคู่ค้า</p>
-                    
-                    <div class="d-grid gap-2" style="z-index: 2; position: relative;">
-                        <a href="{% url 'po_list' %}" class="btn btn-light text-primary fw-bold text-start shadow-sm">
-                            <i class="fas fa-file-invoice-dollar me-2"></i> รายการใบสั่งซื้อ (PO)
-                        </a>
-                        <a href="{% url 'supplier_list' %}" class="btn btn-info text-white fw-bold text-start shadow-sm">
-                            <i class="fas fa-truck me-2"></i> รายชื่อคู่ค้า (Suppliers)
-                        </a>
-                    </div>
-                    <i class="fas fa-handshake position-absolute text-white" style="font-size: 120px; opacity: 0.15; right: -10px; bottom: -20px;"></i>
-                </div>
-            </div>
-        </div>
-
-    </div>
-    ```
-
-วางเสร็จแล้วกดบันทึก แล้วไปดูหน้าเว็บได้เลยครับ หน้าตาจะเปลี่ยนไปอย่างสิ้นเชิง! ✨🚀
-    </div>
-    {% endif %}
             {% if show_sales %}
             <div class="card shadow">
                 <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-success">📈 แนวโน้มยอดขาย</h6></div>
@@ -292,7 +290,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script> 
+<script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script>
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {

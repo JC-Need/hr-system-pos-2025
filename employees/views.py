@@ -7,7 +7,8 @@ from django.contrib import messages
 from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-# ✅ Import ครบถ้วน (เพิ่ม Supplier, StockTransaction, Forms)
+
+# ✅ Import Models & Forms
 from .models import Employee, Attendance, LeaveRequest, Product, Order, OrderItem, Category, Supplier, StockTransaction, PurchaseOrder, PurchaseOrderItem
 from .forms import LeaveRequestForm, ProductForm, SupplierForm, PurchaseOrderForm
 from django.contrib.auth.models import User
@@ -18,7 +19,7 @@ import json
 import requests
 
 # ==========================================
-# --- ฟังก์ชันช่วย ---
+# --- ฟังก์ชันช่วย (Helpers) ---
 # ==========================================
 def get_employee_from_user(user):
     if hasattr(user, 'employee'):
@@ -70,44 +71,34 @@ def home(request):
     return render(request, 'employees/home.html', {'form': form})
 
 # ==========================================
-# 1. Dashboard (เวอร์ชันออโต้ - รองรับทุกแผนกในอนาคต) 🚀
+# 1. Dashboard (Main Dashboard)
 # ==========================================
 @login_required
 def dashboard(request):
-    # 1. รับค่าจากปุ่มกด (ชื่อแผนกที่ส่งมา)
-    view_mode = request.GET.get('view', 'all') 
-    
+    view_mode = request.GET.get('view', 'all')
     emp = get_employee_from_user(request.user)
     today = timezone.localtime(timezone.now()).date()
-    
-    # ดึงรายชื่อแผนกทั้งหมดที่มีในระบบ (เพื่อเอาไปสร้างปุ่มอัตโนมัติ)
     all_departments = Employee.objects.exclude(department__isnull=True).exclude(department__exact='').values_list('department', flat=True).distinct().order_by('department')
 
-    # ตัวแปรควบคุมการแสดงผล
     show_sales = False
     show_hr = False
-    current_dept_view = "ภาพรวมบริษัท" # ชื่อที่จะโชว์บนหัว
-    
-    # ตรวจสอบว่าเป็น CEO หรือไม่?
+    current_dept_view = "ภาพรวมบริษัท"
+
     is_ceo = request.user.username == 'jcneed1975' or request.user.is_superuser
 
     if is_ceo:
-        # 👑 CEO Logic
         if view_mode == 'all':
             show_hr = True
             show_sales = True
             current_dept_view = "ภาพรวม (CEO Dashboard)"
         else:
-            # ถ้ากดเลือกแผนกมา
             current_dept_view = f"แผนก {view_mode}"
-            if view_mode == 'Human Resources': # ชื่อต้องตรงกับใน Database
+            if view_mode == 'Human Resources':
                 show_hr = True
             elif view_mode == 'Sales':
                 show_sales = True
-            # *ถ้ามีแผนก IT หรืออื่นๆ ในอนาคต ก็เพิ่มเงื่อนไขตรงนี้เพื่อโชว์กราฟเฉพาะทาง*
-            
+
     elif emp:
-        # 👔 พนักงานทั่วไป (Logic เดิม)
         dept = str(emp.department)
         if 'CEO' in emp.position or dept == 'Management':
             show_sales = True
@@ -115,6 +106,10 @@ def dashboard(request):
             current_dept_view = "ผู้บริหาร"
         elif dept == 'Sales':
             show_sales = True
+        elif dept == 'Purchasing':
+            return redirect('purchasing_dashboard')
+        elif dept == 'Warehouse':
+            return redirect('inventory_dashboard')
         elif dept == 'Human Resources':
             show_hr = True
         else:
@@ -127,10 +122,8 @@ def dashboard(request):
         'show_sales': show_sales,
         'show_hr': show_hr,
         'view_mode': view_mode,
-        'all_departments': all_departments, # ✅ ส่งรายชื่อแผนกไปทำปุ่ม
+        'all_departments': all_departments,
         'current_dept_view': current_dept_view,
-        
-        # Default Values
         'pie_data': '[]', 'bar_labels': '[]', 'bar_data': '[]',
         'sales_chart_data': '[]', 'sales_labels': '[]',
         'top_prod_labels': '[]', 'top_prod_data': '[]',
@@ -141,28 +134,23 @@ def dashboard(request):
         'filter_start': '', 'filter_end': '',
     }
 
-    # --- 🏢 HR Data Logic ---
     if show_hr:
         total_employees = Employee.objects.count()
         total_salary = Employee.objects.aggregate(Sum('base_allowance'))['base_allowance__sum'] or 0
         pending_leaves = LeaveRequest.objects.filter(status='PENDING').count()
         present_count = Attendance.objects.filter(date=today).count()
         absent_today = total_employees - present_count
-        
-        # กราฟแท่ง
+
         bar_labels = []
         bar_data = []
         for i in range(6, -1, -1):
             d = today - timedelta(days=i)
             bar_labels.append(d.strftime('%d/%m'))
             bar_data.append(Attendance.objects.filter(date=d).count())
-            
-        # กราฟวงกลม
+
         start_work_time = datetime.time(9, 0, 0)
         late_count = Attendance.objects.filter(date=today, time_in__gt=start_work_time).count()
         on_time_count = present_count - late_count
-        
-        # ตารางงบประมาณ
         dept_summary = Employee.objects.values('department').annotate(
             count=Count('id'), total_salary=Sum('base_allowance')
         ).order_by('-total_salary')
@@ -174,21 +162,19 @@ def dashboard(request):
             'pie_data': json.dumps([on_time_count, late_count, absent_today]),
             'dept_summary': dept_summary,
         })
-        
-        # กิจกรรม HR
+
         atts = Attendance.objects.filter(date=today).exclude(time_in__isnull=True)
         for a in atts:
             is_late = a.time_in > datetime.time(9, 0)
             context['activities'].append({
                 'timestamp': datetime.datetime.combine(today, a.time_in),
                 'time_show': a.time_in.strftime('%H:%M'),
-                'icon': 'fa-fingerprint', 'color': 'text-warning' if is_late else 'text-success', 'bg': 'bg-warning-subtle' if is_late else 'bg-success-subtle',
+                'icon': 'fa-fingerprint', 'color': 'text-warning' if is_late else 'text-success',
+                'bg': 'bg-warning-subtle' if is_late else 'bg-success-subtle',
                 'title': f"{a.employee.first_name} ลงเวลา", 'detail': "⚠️ มาสาย" if is_late else "✅ ปกติ"
             })
 
-    # --- 💰 Sales Data Logic ---
     if show_sales:
-        # (ใช้ Logic เดิมในการดึงข้อมูล Sales)
         sales_start = today
         sales_end = today
         req_start = request.GET.get('sales_start')
@@ -198,11 +184,10 @@ def dashboard(request):
                 sales_start = datetime.datetime.strptime(req_start, '%Y-%m-%d').date()
                 sales_end = datetime.datetime.strptime(req_end, '%Y-%m-%d').date()
             except: pass
-            
+
         context['filter_start'] = sales_start.strftime('%Y-%m-%d')
         context['filter_end'] = sales_end.strftime('%Y-%m-%d')
-        
-        # Query ข้อมูล
+
         period_sales_amount = Order.objects.filter(order_date__date__range=[sales_start, sales_end]).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         period_orders_count = Order.objects.filter(order_date__date__range=[sales_start, sales_end]).count()
         period_items_sold = OrderItem.objects.filter(order__order_date__date__range=[sales_start, sales_end]).aggregate(Sum('quantity'))['quantity__sum'] or 0
@@ -210,8 +195,7 @@ def dashboard(request):
         sales_month = Order.objects.filter(order_date__month=today.month, order_date__year=today.year).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         low_stock_count = Product.objects.filter(stock__lte=10).count()
         total_products = Product.objects.filter(is_active=True).count()
-        
-        # กราฟเส้น
+
         sales_labels = []
         sales_chart_data = []
         delta_days = (sales_end - sales_start).days
@@ -220,20 +204,18 @@ def dashboard(request):
             sales_labels.append(d.strftime('%d/%m'))
             val = Order.objects.filter(order_date__date=d).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
             sales_chart_data.append(float(val))
-            
-        # กราฟโดนัท
+
         top_products = OrderItem.objects.filter(order__order_date__date__range=[sales_start, sales_end]).values('product__name').annotate(total_qty=Sum('quantity')).order_by('-total_qty')[:5]
         top_prod_labels = [item['product__name'] for item in top_products]
         top_prod_data = [item['total_qty'] for item in top_products]
-        
+
         context.update({
             'period_sales_amount': "{:,.2f}".format(period_sales_amount), 'sales_today': "{:,.2f}".format(sales_today), 'sales_month': "{:,.2f}".format(sales_month),
             'period_orders_count': period_orders_count, 'period_items_sold': period_items_sold, 'low_stock_count': low_stock_count, 'total_products': total_products,
             'sales_labels': json.dumps(sales_labels), 'sales_chart_data': json.dumps(sales_chart_data),
             'top_prod_labels': json.dumps(top_prod_labels), 'top_prod_data': json.dumps(top_prod_data),
         })
-        
-        # กิจกรรม Sales
+
         orders = Order.objects.filter(order_date__date=today)
         for o in orders:
             context['activities'].append({
@@ -242,7 +224,6 @@ def dashboard(request):
                 'title': f"{o.employee.first_name} ขาย (POS)", 'detail': f"💰 ฿{o.total_amount:,.0f}"
             })
 
-    # Sort Activities
     context['activities'].sort(key=lambda x: x.get('timestamp', timezone.now()), reverse=True)
     context['activities'] = context['activities'][:10]
 
@@ -259,7 +240,7 @@ def employee_detail(request, emp_id):
 
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
-    
+
     if start_date and end_date:
         attendance_list = attendance_list.filter(date__range=[start_date, end_date])
         leave_list = leave_list.filter(start_date__gte=start_date, start_date__lte=end_date)
@@ -395,14 +376,14 @@ def attendance_action(request, emp_id):
     now_local = timezone.localtime(timezone.now())
     today = now_local.date()
     now_time = now_local.time()
-    
+
     attendance, created = Attendance.objects.get_or_create(employee=employee, date=today)
-    
+
     if not attendance.time_in:
         attendance.time_in = now_time
     elif not attendance.time_out:
         attendance.time_out = now_time
-        
+
     attendance.save()
     return redirect('employee_detail', emp_id=emp_id)
 
@@ -451,14 +432,12 @@ def admin_reset_password(request, user_id):
     return render(request, 'employees/password_reset.html', {'form': form, 'target_user': target_user})
 
 # ==========================================
-# 🛒 8. ระบบ POS (อัปเกรดแล้ว!)
+# 🛒 8. ระบบ POS
 # ==========================================
 @login_required
 def pos_home(request):
-    # ✅ ดึงหมวดหมู่มาด้วย (Optimized)
     products = Product.objects.filter(is_active=True, stock__gt=0).select_related('category')
     categories = Category.objects.all()
-    
     return render(request, 'employees/pos.html', {
         'products': products,
         'categories': categories
@@ -486,34 +465,52 @@ def pos_checkout(request):
     return JsonResponse({'success': False, 'error': 'Invalid Request'})
 
 # ==========================================
-# 📦 9. Inventory Views (ระบบจัดการคลังสินค้า) ✅ เพิ่มใหม่!
+# 📦 9. Inventory Views (จัดการคลังสินค้า)
 # ==========================================
 
 @login_required
 def inventory_dashboard(request):
-    # รับค่าประเภทคลังจาก Link (ถ้าไม่ระบุ ให้เป็น 'FG' คือสินค้าขายก่อน)
+    # รับค่าประเภทคลังจาก Link (Default = FG)
     view_type = request.GET.get('type', 'FG')
 
+    # 1. แยกแยะประเภทสินค้า (สินค้าขาย vs วัตถุดิบ)
     if view_type == 'RM':
-        # 🪵 โหมดคลังวัตถุดิบ
         products = Product.objects.filter(product_type='RM').order_by('name')
-        page_title = " คลังวัตถุดิบ (Raw Materials)"
-        theme_color = "warning" # สีส้ม
+        page_title = "คลังวัตถุดิบ (Raw Materials)"
+        theme_color = "warning" # สีเหลือง/ส้ม
+        bg_gradient = "linear-gradient(135deg, #f6c23e 0%, #dda20a 100%)"
+        icon = "fa-layer-group"
     else:
-        # 📦 โหมดคลังสินค้าขาย (Default)
         products = Product.objects.filter(product_type='FG').order_by('name')
         page_title = "คลังสินค้าสำเร็จรูป (Finished Goods)"
         theme_color = "success" # สีเขียว
+        bg_gradient = "linear-gradient(135deg, #1cc88a 0%, #13855c 100%)"
+        icon = "fa-box-open"
 
-    # การแจ้งเตือนสินค้าใกล้หมด (Low Stock) เฉพาะในคลังนั้นๆ
-    low_stock_products = [p for p in products if p.stock <= p.alert_level]
+    # 2. คำนวณ KPI (ตัวเลขสรุป)
+    total_items = products.count()
+    # นับสินค้าที่ต่ำกว่าจุดสั่งซื้อ (Reorder Point) โดยสมมติว่าถ้าไม่ตั้งไว้คือ < 10
+    low_stock_items = [p for p in products if p.stock <= (10)]
+    low_stock_count = len(low_stock_items)
+
+    # คำนวณมูลค่ารวมในคลัง (Total Valuation)
+    # (ใช้ราคา price คูณจำนวนสต็อก เพื่อประเมินมูลค่าคร่าวๆ)
+    total_value = sum(p.stock * p.price for p in products)
+
+    # 3. ดึงประวัติการเคลื่อนไหวล่าสุด 10 รายการ (Transaction History)
+    recent_transactions = StockTransaction.objects.filter(product__product_type=view_type).order_by('-created_at')[:10]
 
     context = {
         'products': products,
-        'low_stock_products': low_stock_products,
+        'view_type': view_type,
         'page_title': page_title,
         'theme_color': theme_color,
-        'view_type': view_type, # ส่งค่าประเภทกลับไปที่หน้าจอด้วย
+        'bg_gradient': bg_gradient,
+        'icon': icon,
+        'total_items': total_items,
+        'low_stock_count': low_stock_count,
+        'total_value': total_value,
+        'recent_transactions': recent_transactions,
     }
     return render(request, 'employees/inventory_dashboard.html', context)
 
@@ -567,93 +564,36 @@ def supplier_create(request):
     return render(request, 'employees/product_form.html', {'form': form, 'title': 'เพิ่มซัพพลายเออร์'})
 
 # ==========================================
-# 🛒 10. ระบบจัดซื้อ (Purchasing System)
-# ==========================================
-from .forms import PurchaseOrderForm, PurchaseItemForm
-
-@login_required
-def po_list(request):
-    # แสดงรายการใบสั่งซื้อทั้งหมด
-    pos = PurchaseOrder.objects.all().order_by('-created_at')
-    return render(request, 'employees/po_list.html', {'pos': pos})
-
-@login_required
-def po_create(request):
-    # สร้างใบสั่งซื้อใหม่ (เฉพาะหัวบิลก่อน)
-    if request.method == 'POST':
-        form = PurchaseOrderForm(request.POST)
-        if form.is_valid():
-            po = form.save(commit=False)
-            po.created_by = request.user
-            po.save()
-            return redirect('po_detail', po_id=po.id)
-    else:
-        form = PurchaseOrderForm()
-    return render(request, 'employees/po_form.html', {'form': form, 'title': 'เปิดใบสั่งซื้อใหม่ (Create PO)'})
-
-@login_required
-def po_detail(request, po_id):
-    # หน้ารายละเอียด + เพิ่มสินค้าในบิล
-    po = get_object_or_404(PurchaseOrder, pk=po_id)
-    
-    # คำนวณยอดรวมใหม่ทุกครั้งที่เปิดดู
-    total = sum(item.total_price for item in po.items.all())
-    po.total_amount = total
-    po.save()
-
-    if request.method == 'POST':
-        # ฟอร์มเพิ่มสินค้า
-        form = PurchaseItemForm(request.POST)
-        if form.is_valid():
-            item = form.save(commit=False)
-            item.purchase_order = po
-            item.save()
-            return redirect('po_detail', po_id=po.id)
-    else:
-        form = PurchaseItemForm()
-
-    return render(request, 'employees/po_detail.html', {'po': po, 'form': form})
-
-@login_required
-def po_receive(request, po_id):
-    # ✨ ปุ่มวิเศษ: รับของเข้าสต็อก!
-    po = get_object_or_404(PurchaseOrder, pk=po_id)
-    
-    if po.status != 'RECEIVED':
-        # วนลูปสินค้าทุกตัวในบิล แล้วเอาไปบวกในสต็อกจริง
-        for item in po.items.all():
-            product = item.product
-            product.stock += item.quantity # 📈 เพิ่มสต็อก
-            # product.cost_price = item.unit_price # (Option: อัปเดตราคาต้นทุนล่าสุดถ้ายอมรับได้)
-            product.save()
-            
-            # บันทึก Transaction เพื่อตรวจสอบย้อนหลัง
-            StockTransaction.objects.create(
-                product=product,
-                transaction_type='IN',
-                quantity=item.quantity,
-                price_at_time=item.unit_price,
-                created_by=request.user,
-                note=f"รับของจาก PO: {po.po_number}"
-            )
-        
-        po.status = 'RECEIVED'
-        po.save()
-        messages.success(request, f"✅ รับของเข้าคลังเรียบร้อย! (PO: {po.po_number})")
-    
-    return redirect('po_list')
-
-@login_required
-def po_delete_item(request, item_id):
-    item = get_object_or_404(PurchaseOrderItem, pk=item_id)
-    po_id = item.purchase_order.id
-    item.delete()
-    return redirect('po_detail', po_id=po_id)
-
-# ==========================================
-# 🛒 ระบบจัดซื้อ (Purchasing System)
+# 🛒 10. ระบบจัดซื้อ & Dashboard (Purchasing System)
 # ==========================================
 
+# --- 📊 A. ส่วน Dashboard (เพิ่มใหม่!) ---
+@login_required
+def purchasing_dashboard(request):
+    # 1. ข้อมูล KPI หลัก
+    total_spend = PurchaseOrder.objects.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+    pending_pos = PurchaseOrder.objects.filter(status='PENDING').count()
+
+    # 2. เช็กของใกล้หมด (Low Stock Alerts)
+    # วัตถุดิบ (RM) ที่ต้องซื้อด่วน (คงเหลือน้อยกว่า 10)
+    low_stock_rm = Product.objects.filter(product_type='RM', stock__lte=10).order_by('stock')[:5]
+
+    # สินค้าขาย (FG) ที่ต้องซื้อด่วน
+    low_stock_fg = Product.objects.filter(product_type='FG', stock__lte=10).order_by('stock')[:5]
+
+    # 3. ใบสั่งซื้อล่าสุด 5 ใบ
+    recent_orders = PurchaseOrder.objects.all().order_by('-created_at')[:5]
+
+    context = {
+        'total_spend': total_spend,
+        'pending_pos': pending_pos,
+        'low_stock_rm': low_stock_rm,
+        'low_stock_fg': low_stock_fg,
+        'recent_orders': recent_orders,
+    }
+    return render(request, 'employees/purchasing_dashboard.html', context)
+
+# --- 🛒 B. ส่วนจัดการใบสั่งซื้อ (PO Logic) ---
 @login_required
 def po_list(request):
     # แสดงรายการใบสั่งซื้อทั้งหมด เรียงจากใหม่ไปเก่า
@@ -688,7 +628,7 @@ def po_detail(request, po_id):
         price = float(request.POST.get('price'))
 
         product = Product.objects.get(id=product_id)
-        
+
         # บันทึกลงตารางลูก (Item)
         PurchaseOrderItem.objects.create(
             purchase_order=po,
@@ -706,16 +646,15 @@ def po_detail(request, po_id):
 
 @login_required
 def po_receive(request, po_id):
-    # ฟังก์ชันสำหรับ "ลุงป้อม" กดรับของ (สำคัญมาก!)
+    # ฟังก์ชันสำหรับกดรับของ (Stock In)
     po = get_object_or_404(PurchaseOrder, pk=po_id)
 
     if po.status == 'PENDING':
         # 1. วนลูปสินค้าทุกตัวในบิล เพื่อเอาเข้าสต็อก
         for item in po.items.all():
             product = item.product
-            
             # เพิ่มสต็อกจริง!
-            product.stock += item.quantity 
+            product.stock += item.quantity
             product.save()
 
             # 2. บันทึกประวัติ Transaction (Log)
@@ -732,6 +671,5 @@ def po_receive(request, po_id):
         po.status = 'RECEIVED'
         po.save()
         messages.success(request, f"✅ รับของเข้าคลังเรียบร้อย! (PO: {po.po_number})")
-    
-    return redirect('po_list')
 
+    return redirect('po_list')

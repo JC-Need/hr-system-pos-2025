@@ -1,0 +1,196 @@
+{% extends 'employees/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-4 pb-5">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary"><i class="fas fa-chart-pie me-2"></i>Purchasing Dashboard</h2>
+            <p class="text-muted mb-0">ภาพรวมการจัดซื้อและสถานะสินค้าคงคลัง</p>
+        </div>
+        <div>
+            <a href="{% url 'employee_detail' request.user.employee.id %}" class="btn btn-warning rounded-pill px-4 me-2 shadow-sm text-dark fw-bold">
+                <i class="fas fa-id-card me-2"></i> ข้อมูลส่วนตัว
+            </a>
+
+            <a href="{% url 'po_create' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+                <i class="fas fa-plus me-2"></i> เปิดใบสั่งซื้อใหม่ (New PO)
+            </a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1 opacity-75">ยอดสั่งซื้อรวม (Total Spend)</h6>
+                            <h2 class="fw-bold mb-0">฿{{ total_spend|intcomma }}</h2>
+                        </div>
+                        <i class="fas fa-wallet fa-3x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-warning text-dark h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1 opacity-75">รอรับของ (Pending POs)</h6>
+                            <h2 class="fw-bold mb-0">{{ pending_pos }} <span class="fs-6 fw-normal">ใบ</span></h2>
+                        </div>
+                        <i class="fas fa-truck-loading fa-3x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm bg-danger text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-1 opacity-75">สินค้าใกล้หมด (Low Stock)</h6>
+                            <h2 class="fw-bold mb-0">{{ low_stock_rm.count|add:low_stock_fg.count }} <span class="fs-6 fw-normal">รายการ</span></h2>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-3x opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom-0 py-3">
+                    <h5 class="fw-bold text-warning m-0">
+                        <i class="fas fa-layer-group me-2"></i>วัตถุดิบต้องซื้อด่วน! (Raw Materials)
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="bg-light text-secondary">
+                            <tr>
+                                <th class="ps-4">รายการ</th>
+                                <th class="text-end pe-4">คงเหลือ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in low_stock_rm %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold">{{ item.name }}</div>
+                                    <small class="text-muted">Min: 10</small>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <span class="badge bg-danger rounded-pill px-3">{{ item.stock }}</span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="2" class="text-center py-4 text-muted">✅ วัตถุดิบเพียงพอทุกรายการ</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if low_stock_rm %}
+                <div class="card-footer bg-white border-0 text-center pb-3">
+                    <a href="{% url 'po_create' %}" class="btn btn-sm btn-outline-warning w-100">สั่งซื้อวัตถุดิบเดี๋ยวนี้</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom-0 py-3">
+                    <h5 class="fw-bold text-success m-0">
+                        <i class="fas fa-box-open me-2"></i>สินค้าขายใกล้หมด! (Finished Goods)
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="bg-light text-secondary">
+                            <tr>
+                                <th class="ps-4">รายการ</th>
+                                <th class="text-end pe-4">คงเหลือ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in low_stock_fg %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold">{{ item.name }}</div>
+                                    <small class="text-muted">Min: 10</small>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <span class="badge bg-danger rounded-pill px-3">{{ item.stock }}</span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="2" class="text-center py-4 text-muted">✅ สินค้ามีพอขายทุกรายการ</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if low_stock_fg %}
+                <div class="card-footer bg-white border-0 text-center pb-3">
+                    <a href="{% url 'po_create' %}" class="btn btn-sm btn-outline-success w-100">สั่งซื้อสินค้ามาขายเดี๋ยวนี้</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 border-bottom-0">
+            <h5 class="fw-bold m-0 text-secondary"><i class="fas fa-history me-2"></i>การสั่งซื้อล่าสุด</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">PO No.</th>
+                        <th>Supplier</th>
+                        <th>วันที่</th>
+                        <th>ผู้สั่ง</th>
+                        <th>ยอดรวม</th>
+                        <th>สถานะ</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for po in recent_orders %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-primary">#{{ po.po_number }}</td>
+                        <td>{{ po.supplier.name }}</td>
+                        <td>{{ po.order_date|date:"d/m/Y" }}</td>
+                        <td>
+                            <img src="https://ui-avatars.com/api/?name={{ po.created_by.first_name }}&background=random" class="rounded-circle me-1" width="25">
+                            {{ po.created_by.first_name }}
+                        </td>
+                        <td class="fw-bold">฿{{ po.total_amount|intcomma }}</td>
+                        <td>
+                            {% if po.status == 'PENDING' %}
+                                <span class="badge bg-warning text-dark">รอของ</span>
+                            {% else %}
+                                <span class="badge bg-success">สำเร็จ</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <a href="{% url 'po_detail' po.id %}" class="btn btn-sm btn-light text-primary"><i class="fas fa-eye"></i></a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                     <tr><td colspan="7" class="text-center py-5 text-muted">ยังไม่มีประวัติการสั่งซื้อ</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
