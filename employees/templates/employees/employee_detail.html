@@ -47,7 +47,16 @@
                 </div>
                 <div class="col-md-4">
                     <small class="text-muted fw-bold text-uppercase"><i class="fas fa-gift me-1"></i> โบนัสคงเหลือ</small>
-                    <div class="fs-5 fw-bold text-primary">฿ {{ formatted_bonus }} <i class="far fa-question-circle text-muted small" title="หัก: {{ total_deduct }}"></i></div>
+                    <div class="fs-5 fw-bold text-primary">
+                        ฿ {{ formatted_bonus }} 
+                        
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle ms-1 border-0 bg-light" 
+                                data-bs-toggle="modal" data-bs-target="#bonusModal" 
+                                style="width: 24px; height: 24px; padding: 0; line-height: 24px; vertical-align: middle;">
+                            <i class="fas fa-question" style="font-size: 0.8rem;"></i>
+                        </button>
+
+                    </div>
                     <small class="text-danger" style="font-size: 0.8rem;">(หักรวม: {{ total_deduct }})</small>
                 </div>
             </div>
@@ -186,15 +195,56 @@
 
 </div>
 
+<div class="modal fade" id="bonusModal" tabindex="-1" aria-labelledby="bonusModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fs-6 fw-bold" id="bonusModalLabel">
+                    <i class="fas fa-calculator me-2"></i>รายละเอียดการคำนวณโบนัส
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="fw-bold text-secondary">💰 โบนัสตั้งต้น (Base Bonus)</span>
+                    <span class="text-success fw-bold">+ {{ base_bonus }}</span>
+                </div>
+                <hr class="my-2">
+                
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-danger"><i class="fas fa-procedures me-2" style="width:20px;"></i>ลาป่วย ({{ sick_count }} ครั้ง)</span>
+                    <span class="text-danger fw-bold">- {{ sick_deduct }}</span>
+                </div>
+                <div class="small text-muted mb-2 ms-4" style="font-size: 0.8rem;">(หักครั้งละ 500 บาท)</div>
+
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-danger"><i class="fas fa-briefcase me-2" style="width:20px;"></i>ลากิจ ({{ business_count }} ครั้ง)</span>
+                    <span class="text-danger fw-bold">- {{ business_deduct }}</span>
+                </div>
+                <div class="small text-muted mb-3 ms-4" style="font-size: 0.8rem;">(หักครั้งละ 1,000 บาท)</div>
+                
+                <hr class="my-2">
+                <div class="d-flex justify-content-between align-items-center bg-light p-3 rounded border">
+                    <span class="mb-0 fw-bold text-dark">ยอดสุทธิ (Net Bonus)</span>
+                    <span class="mb-0 h4 fw-bold text-primary">฿ {{ formatted_bonus }}</span>
+                </div>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script>
 <script>
     flatpickr(".datepicker", {
-        dateFormat: "Y-m-d", // ส่งค่าไป Server
-        altInput: true,      // แสดงผลแยก
-        altFormat: "d/m/Y",  // รูปแบบที่คนเห็น (วัน/เดือน/ปี)
-        locale: "th",        // ภาษาไทย
+        dateFormat: "Y-m-d", 
+        altInput: true,      
+        altFormat: "d/m/Y",  
+        locale: "th",        
         allowInput: true
     });
 </script>

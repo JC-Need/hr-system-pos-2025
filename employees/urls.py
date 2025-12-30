@@ -35,10 +35,29 @@ urlpatterns = [
     path('users/manage/', views.user_list, name='user_list'),
     path('users/reset-password/<int:user_id>/', views.admin_reset_password, name='admin_reset_password'),
 
-    # 10. ระบบขายหน้าร้าน (POS System) 🛒 ✅ เพิ่มใหม่ตรงนี้ครับ
-    path('pos/', views.pos_home, name='pos_home'),           # หน้าจอขายของ
-    path('pos/checkout/', views.pos_checkout, name='pos_checkout'), # ลิงก์สำหรับคิดเงิน
+    # 10. ระบบขายหน้าร้าน (POS System) 🛒
+    path('pos/', views.pos_home, name='pos_home'),
+    path('pos/checkout/', views.pos_checkout, name='pos_checkout'),
 
-    # 11. ออกจากระบบ
+    # ==========================================
+    # 📦 11. ระบบคลังสินค้า (Inventory System) ✅ เพิ่มใหม่!
+    # ==========================================
+    path('inventory/', views.inventory_dashboard, name='inventory_dashboard'),
+    path('inventory/add/', views.product_create, name='product_create'),
+    path('inventory/edit/<int:pk>/', views.product_edit, name='product_edit'),
+    path('inventory/suppliers/', views.supplier_list, name='supplier_list'),
+    path('inventory/suppliers/add/', views.supplier_create, name='supplier_create'),
+
+   # ==========================================
+   # 🛒 12. ระบบจัดซื้อ (Purchasing)
+   # ==========================================
+   path('purchase/', views.po_list, name='po_list'),
+   path('purchase/new/', views.po_create, name='po_create'),
+   path('purchase/<int:po_id>/', views.po_detail, name='po_detail'),
+   path('purchase/<int:po_id>/receive/', views.po_receive, name='po_receive'),
+   
+
+    # 12. ออกจากระบบ
     path('logout/', views.logout_view, name='logout'),
 ]
+

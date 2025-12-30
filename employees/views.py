@@ -7,9 +7,9 @@ from django.contrib import messages
 from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-# ✅ Import ครบถ้วน
-from .models import Employee, Attendance, LeaveRequest, Product, Order, OrderItem, Category
-from .forms import LeaveRequestForm
+# ✅ Import ครบถ้วน (เพิ่ม Supplier, StockTransaction, Forms)
+from .models import Employee, Attendance, LeaveRequest, Product, Order, OrderItem, Category, Supplier, StockTransaction, PurchaseOrder, PurchaseOrderItem
+from .forms import LeaveRequestForm, ProductForm, SupplierForm, PurchaseOrderForm
 from django.contrib.auth.models import User
 
 import datetime
@@ -81,7 +81,6 @@ def dashboard(request):
     today = timezone.localtime(timezone.now()).date()
     
     # ดึงรายชื่อแผนกทั้งหมดที่มีในระบบ (เพื่อเอาไปสร้างปุ่มอัตโนมัติ)
-    # .exclude(department='') คือไม่เอาคนที่ไม่ได้ระบุแผนก
     all_departments = Employee.objects.exclude(department__isnull=True).exclude(department__exact='').values_list('department', flat=True).distinct().order_by('department')
 
     # ตัวแปรควบคุมการแสดงผล
@@ -120,9 +119,6 @@ def dashboard(request):
             show_hr = True
         else:
             return redirect('employee_detail', emp_id=emp.id)
-
-    # ... (ส่วนเตรียมข้อมูล Data Preparation ก๊อปปี้ชุดเดิมมาวางต่อตรงนี้ได้เลยครับ) ...
-    # ... (หรือใช้ชุดด้านล่างนี้ ผมย่อให้ครบแล้ว) ...
 
     context = {
         'role_name': "CEO / Admin" if is_ceo else emp.position,
@@ -247,8 +243,6 @@ def dashboard(request):
             })
 
     # Sort Activities
-    # แปลง timestamp เป็น aware datetime ถ้าจำเป็นเพื่อให้ sort ได้
-    # (ในโค้ดนี้ผมจัดการให้แล้วใน logic ย่อย)
     context['activities'].sort(key=lambda x: x.get('timestamp', timezone.now()), reverse=True)
     context['activities'] = context['activities'][:10]
 
@@ -463,8 +457,6 @@ def admin_reset_password(request, user_id):
 def pos_home(request):
     # ✅ ดึงหมวดหมู่มาด้วย (Optimized)
     products = Product.objects.filter(is_active=True, stock__gt=0).select_related('category')
-    
-    # ✅ ดึง Categories ทั้งหมด ส่งไปหน้า HTML
     categories = Category.objects.all()
     
     return render(request, 'employees/pos.html', {
@@ -492,3 +484,254 @@ def pos_checkout(request):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid Request'})
+
+# ==========================================
+# 📦 9. Inventory Views (ระบบจัดการคลังสินค้า) ✅ เพิ่มใหม่!
+# ==========================================
+
+@login_required
+def inventory_dashboard(request):
+    # รับค่าประเภทคลังจาก Link (ถ้าไม่ระบุ ให้เป็น 'FG' คือสินค้าขายก่อน)
+    view_type = request.GET.get('type', 'FG')
+
+    if view_type == 'RM':
+        # 🪵 โหมดคลังวัตถุดิบ
+        products = Product.objects.filter(product_type='RM').order_by('name')
+        page_title = " คลังวัตถุดิบ (Raw Materials)"
+        theme_color = "warning" # สีส้ม
+    else:
+        # 📦 โหมดคลังสินค้าขาย (Default)
+        products = Product.objects.filter(product_type='FG').order_by('name')
+        page_title = "คลังสินค้าสำเร็จรูป (Finished Goods)"
+        theme_color = "success" # สีเขียว
+
+    # การแจ้งเตือนสินค้าใกล้หมด (Low Stock) เฉพาะในคลังนั้นๆ
+    low_stock_products = [p for p in products if p.stock <= p.alert_level]
+
+    context = {
+        'products': products,
+        'low_stock_products': low_stock_products,
+        'page_title': page_title,
+        'theme_color': theme_color,
+        'view_type': view_type, # ส่งค่าประเภทกลับไปที่หน้าจอด้วย
+    }
+    return render(request, 'employees/inventory_dashboard.html', context)
+
+@login_required
+def product_create(request):
+    if request.method == 'POST':
+        form = ProductForm(request.POST, request.FILES)
+        if form.is_valid():
+            product = form.save()
+            # บันทึก Transaction แรกรับ (Opening Stock)
+            if product.stock > 0:
+                StockTransaction.objects.create(
+                    product=product,
+                    transaction_type='IN',
+                    quantity=product.stock,
+                    price_at_time=product.cost_price,
+                    created_by=request.user,
+                    note="สินค้าตั้งต้น (Initial Stock)"
+                )
+            return redirect('inventory_dashboard')
+    else:
+        form = ProductForm()
+    return render(request, 'employees/product_form.html', {'form': form, 'title': 'เพิ่มสินค้าใหม่'})
+
+@login_required
+def product_edit(request, pk):
+    product = get_object_or_404(Product, pk=pk)
+    if request.method == 'POST':
+        form = ProductForm(request.POST, request.FILES, instance=product)
+        if form.is_valid():
+            form.save()
+            return redirect('inventory_dashboard')
+    else:
+        form = ProductForm(instance=product)
+    return render(request, 'employees/product_form.html', {'form': form, 'title': f'แก้ไข: {product.name}'})
+
+@login_required
+def supplier_list(request):
+    suppliers = Supplier.objects.all()
+    return render(request, 'employees/supplier_list.html', {'suppliers': suppliers})
+
+@login_required
+def supplier_create(request):
+    if request.method == 'POST':
+        form = SupplierForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('supplier_list')
+    else:
+        form = SupplierForm()
+    return render(request, 'employees/product_form.html', {'form': form, 'title': 'เพิ่มซัพพลายเออร์'})
+
+# ==========================================
+# 🛒 10. ระบบจัดซื้อ (Purchasing System)
+# ==========================================
+from .forms import PurchaseOrderForm, PurchaseItemForm
+
+@login_required
+def po_list(request):
+    # แสดงรายการใบสั่งซื้อทั้งหมด
+    pos = PurchaseOrder.objects.all().order_by('-created_at')
+    return render(request, 'employees/po_list.html', {'pos': pos})
+
+@login_required
+def po_create(request):
+    # สร้างใบสั่งซื้อใหม่ (เฉพาะหัวบิลก่อน)
+    if request.method == 'POST':
+        form = PurchaseOrderForm(request.POST)
+        if form.is_valid():
+            po = form.save(commit=False)
+            po.created_by = request.user
+            po.save()
+            return redirect('po_detail', po_id=po.id)
+    else:
+        form = PurchaseOrderForm()
+    return render(request, 'employees/po_form.html', {'form': form, 'title': 'เปิดใบสั่งซื้อใหม่ (Create PO)'})
+
+@login_required
+def po_detail(request, po_id):
+    # หน้ารายละเอียด + เพิ่มสินค้าในบิล
+    po = get_object_or_404(PurchaseOrder, pk=po_id)
+    
+    # คำนวณยอดรวมใหม่ทุกครั้งที่เปิดดู
+    total = sum(item.total_price for item in po.items.all())
+    po.total_amount = total
+    po.save()
+
+    if request.method == 'POST':
+        # ฟอร์มเพิ่มสินค้า
+        form = PurchaseItemForm(request.POST)
+        if form.is_valid():
+            item = form.save(commit=False)
+            item.purchase_order = po
+            item.save()
+            return redirect('po_detail', po_id=po.id)
+    else:
+        form = PurchaseItemForm()
+
+    return render(request, 'employees/po_detail.html', {'po': po, 'form': form})
+
+@login_required
+def po_receive(request, po_id):
+    # ✨ ปุ่มวิเศษ: รับของเข้าสต็อก!
+    po = get_object_or_404(PurchaseOrder, pk=po_id)
+    
+    if po.status != 'RECEIVED':
+        # วนลูปสินค้าทุกตัวในบิล แล้วเอาไปบวกในสต็อกจริง
+        for item in po.items.all():
+            product = item.product
+            product.stock += item.quantity # 📈 เพิ่มสต็อก
+            # product.cost_price = item.unit_price # (Option: อัปเดตราคาต้นทุนล่าสุดถ้ายอมรับได้)
+            product.save()
+            
+            # บันทึก Transaction เพื่อตรวจสอบย้อนหลัง
+            StockTransaction.objects.create(
+                product=product,
+                transaction_type='IN',
+                quantity=item.quantity,
+                price_at_time=item.unit_price,
+                created_by=request.user,
+                note=f"รับของจาก PO: {po.po_number}"
+            )
+        
+        po.status = 'RECEIVED'
+        po.save()
+        messages.success(request, f"✅ รับของเข้าคลังเรียบร้อย! (PO: {po.po_number})")
+    
+    return redirect('po_list')
+
+@login_required
+def po_delete_item(request, item_id):
+    item = get_object_or_404(PurchaseOrderItem, pk=item_id)
+    po_id = item.purchase_order.id
+    item.delete()
+    return redirect('po_detail', po_id=po_id)
+
+# ==========================================
+# 🛒 ระบบจัดซื้อ (Purchasing System)
+# ==========================================
+
+@login_required
+def po_list(request):
+    # แสดงรายการใบสั่งซื้อทั้งหมด เรียงจากใหม่ไปเก่า
+    orders = PurchaseOrder.objects.all().order_by('-created_at')
+    return render(request, 'employees/po_list.html', {'orders': orders})
+
+@login_required
+def po_create(request):
+    # สร้างใบสั่งซื้อใหม่ (Header)
+    if request.method == 'POST':
+        form = PurchaseOrderForm(request.POST)
+        if form.is_valid():
+            po = form.save(commit=False)
+            po.created_by = request.user
+            po.save()
+            messages.success(request, f"สร้างใบสั่งซื้อ {po.po_number} แล้ว! กรุณาเพิ่มรายการสินค้า")
+            return redirect('po_detail', po_id=po.id) # ไปหน้าเพิ่มสินค้าต่อเลย
+    else:
+        form = PurchaseOrderForm()
+    return render(request, 'employees/po_form.html', {'form': form, 'title': 'เปิดใบสั่งซื้อใหม่'})
+
+@login_required
+def po_detail(request, po_id):
+    # หน้ารายละเอียด PO (จุดที่ใช้เพิ่มสินค้า และกดรับของ)
+    po = get_object_or_404(PurchaseOrder, pk=po_id)
+    products = Product.objects.all().order_by('name') # ดึงสินค้ามาให้เลือก
+
+    if request.method == 'POST' and po.status == 'PENDING':
+        # รับค่าจากฟอร์มเพิ่มสินค้า (แบบง่าย)
+        product_id = request.POST.get('product_id')
+        quantity = float(request.POST.get('quantity'))
+        price = float(request.POST.get('price'))
+
+        product = Product.objects.get(id=product_id)
+        
+        # บันทึกลงตารางลูก (Item)
+        PurchaseOrderItem.objects.create(
+            purchase_order=po,
+            product=product,
+            quantity=quantity,
+            unit_price=price
+        )
+        # อัปเดตยอดรวมใบสั่งซื้อ
+        po.total_amount += (quantity * price)
+        po.save()
+        messages.success(request, f"เพิ่ม {product.name} เรียบร้อย")
+        return redirect('po_detail', po_id=po.id)
+
+    return render(request, 'employees/po_detail.html', {'po': po, 'products': products})
+
+@login_required
+def po_receive(request, po_id):
+    # ฟังก์ชันสำหรับ "ลุงป้อม" กดรับของ (สำคัญมาก!)
+    po = get_object_or_404(PurchaseOrder, pk=po_id)
+
+    if po.status == 'PENDING':
+        # 1. วนลูปสินค้าทุกตัวในบิล เพื่อเอาเข้าสต็อก
+        for item in po.items.all():
+            product = item.product
+            
+            # เพิ่มสต็อกจริง!
+            product.stock += item.quantity 
+            product.save()
+
+            # 2. บันทึกประวัติ Transaction (Log)
+            StockTransaction.objects.create(
+                product=product,
+                transaction_type='IN',
+                quantity=item.quantity,
+                price_at_time=item.unit_price,
+                created_by=request.user,
+                note=f"รับของจาก PO: {po.po_number}"
+            )
+
+        # 3. เปลี่ยนสถานะบิลเป็น "ได้รับแล้ว"
+        po.status = 'RECEIVED'
+        po.save()
+        messages.success(request, f"✅ รับของเข้าคลังเรียบร้อย! (PO: {po.po_number})")
+    
+    return redirect('po_list')
+

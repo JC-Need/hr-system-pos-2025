@@ -1,0 +1,86 @@
+{% extends 'employees/base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow border-0">
+                <div class="card-header bg-primary text-white py-3">
+                    <h4 class="mb-0 fw-bold">
+                        <i class="fas fa-file-invoice-dollar me-2"></i>เปิดใบสั่งซื้อใหม่ (Create PO)
+                    </h4>
+                </div>
+
+                <div class="card-body p-4">
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                            <div class="alert alert-danger shadow-sm">
+                                <i class="fas fa-exclamation-circle me-2"></i><strong>เกิดข้อผิดพลาด:</strong> โปรดตรวจสอบข้อมูล
+                            </div>
+                        {% endif %}
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary">1. เลือกซัพพลายเออร์ (Supplier)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-primary"><i class="fas fa-truck"></i></span>
+                                {{ form.supplier }} 
+                            </div>
+                            <div class="form-text text-muted small">เลือกคู่ค้าที่จะสั่งซื้อสินค้า (ถ้าไม่มีให้ไปเพิ่มที่หน้า Admin)</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary">2. วันที่เอกสาร (Date)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-primary"><i class="fas fa-calendar-alt"></i></span>
+                                {{ form.order_date }}
+                            </div>
+                        </div>
+
+                         <div class="mb-4">
+                            <label class="form-label fw-bold text-secondary">3. หมายเหตุ (Note)</label>
+                            {{ form.note }}
+                        </div>
+
+                        <hr class="my-4 text-muted opacity-25">
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'po_list' %}" class="btn btn-outline-secondary rounded-pill px-4 hover-shadow">
+                                <i class="fas fa-arrow-left me-1"></i> ยกเลิก
+                            </a>
+                            <button type="submit" class="btn btn-success rounded-pill px-5 shadow fw-bold hover-scale">
+                                <i class="fas fa-check-circle me-1"></i> สร้างใบสั่งซื้อ
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* บังคับให้ช่องกรอกข้อมูลเต็มความกว้างและมีขอบมน */
+    select, input[type="text"], input[type="date"], textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ced4da;
+        border-radius: 0 8px 8px 0; /* มุมขวามน */
+    }
+    
+    /* สไตล์ปุ่มกดให้เด้งดึ๋ง */
+    .hover-scale:hover {
+        transform: translateY(-2px);
+        transition: transform 0.2s;
+    }
+    
+    /* ปรับแต่ง Dropdown */
+    .input-group-text {
+        border-radius: 8px 0 0 8px; /* มุมซ้ายมน */
+        border: 1px solid #ced4da;
+        border-right: 0;
+    }
+</style>
+{% endblock %}
+

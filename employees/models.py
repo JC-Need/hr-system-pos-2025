@@ -97,10 +97,21 @@ class LeaveRequest(models.Model):
         return delta.days + 1
 
 # ==========================================
-# 🛒 ระบบขายหน้าร้าน (POS System) - อัปเกรดใหม่!
+# 🛒 ระบบขายหน้าร้าน (POS) & คลังสินค้า (Inventory)
 # ==========================================
 
-# 1. ✅ (ใหม่) ตารางหมวดหมู่สินค้า
+# 4. ตารางซัพพลายเออร์ (Supplier) - ✅ ใหม่!
+class Supplier(models.Model):
+    name = models.CharField(max_length=200, verbose_name="ชื่อบริษัท/ร้านค้า")
+    contact_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="ชื่อผู้ติดต่อ")
+    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name="เบอร์โทรศัพท์")
+    address = models.TextField(blank=True, null=True, verbose_name="ที่อยู่")
+    line_id = models.CharField(max_length=50, blank=True, null=True, verbose_name="Line ID")
+
+    def __str__(self):
+        return self.name
+
+# 5. ตารางหมวดหมู่สินค้า
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="ชื่อหมวดหมู่")
     
@@ -110,23 +121,37 @@ class Category(models.Model):
     class Meta:
         verbose_name_plural = "จัดการหมวดหมู่สินค้า (Categories)"
 
-# 2. ตู้เก็บสินค้า (Product) - อัปเกรด
+# 6. ตู้เก็บสินค้า (Product) - ✅ อัปเกรด!
 class Product(models.Model):
     name = models.CharField(max_length=100, verbose_name="ชื่อสินค้า")
-    
-    # ✅ เชื่อมกับตารางหมวดหมู่ (Category)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="หมวดหมู่")
-    
     description = models.TextField(blank=True, null=True, verbose_name="รายละเอียด")
+    # ✅ เพิ่มใหม่: แยกประเภทสินค้า (ขาย vs วัตถุดิบ)
+    PRODUCT_TYPES = [
+        ('FG', 'สินค้าสำเร็จรูป (Finished Good)'),
+        ('RM', 'วัตถุดิบ (Raw Material)'),
+    ]
+    product_type = models.CharField(max_length=2, choices=PRODUCT_TYPES, default='FG', verbose_name="ประเภทสินค้า")
+    
+    # ราคาและการขาย
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="ราคาทุน") # ใหม่
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="ราคาขาย")
+    
+    # สต็อกและการแจ้งเตือน
     stock = models.IntegerField(default=0, verbose_name="จำนวนคงเหลือ")
+    alert_level = models.IntegerField(default=5, verbose_name="แจ้งเตือนเมื่อต่ำกว่า") # ใหม่
+    
+    # ข้อมูลเพิ่มเติม
+    barcode = models.CharField(max_length=50, blank=True, null=True, unique=True, verbose_name="รหัสบาร์โค้ด") # ใหม่
+    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="ซัพพลายเออร์") # ใหม่
+    
     image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name="รูปสินค้า")
     is_active = models.BooleanField(default=True, verbose_name="เปิดขาย")
     
     def __str__(self):
         return f"{self.name} ({self.stock})"
 
-# 3. ตู้เก็บหัวบิล (Order)
+# 7. ตู้เก็บหัวบิล (Order)
 class Order(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, verbose_name="พนักงานขาย")
     order_date = models.DateTimeField(auto_now_add=True, verbose_name="วันที่ขาย")
@@ -135,7 +160,7 @@ class Order(models.Model):
     def __str__(self):
         return f"Order #{self.id} by {self.employee.first_name}"
 
-# 4. ตู้เก็บรายการในบิล (OrderItem)
+# 8. ตู้เก็บรายการในบิล (OrderItem)
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, verbose_name="สินค้า")
@@ -149,3 +174,61 @@ class OrderItem(models.Model):
         if self.product:
             return f"{self.product.name} x {self.quantity}"
         return f"Unknown Product x {self.quantity}"
+
+# 9. บันทึกการเคลื่อนไหวสต็อก (StockTransaction) - ✅ ใหม่!
+class StockTransaction(models.Model):
+    TRANSACTION_TYPES = (
+        ('IN', '🟢 รับเข้า (ซื้อเพิ่ม/รับคืน)'),
+        ('OUT', '🔴 จ่ายออก (ขาย/เบิกใช้)'),
+        ('ADJUST', '🟠 ปรับปรุง (ของหาย/นับสต็อก)'),
+    )
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="สินค้า")
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES, verbose_name="ประเภทรายการ")
+    quantity = models.IntegerField(verbose_name="จำนวน")
+    price_at_time = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="ราคาต่อหน่วย(ตอนทำรายการ)")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="ผู้ทำรายการ")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="วันที่ทำรายการ")
+    note = models.TextField(blank=True, null=True, verbose_name="หมายเหตุ")
+
+    def __str__(self):
+        return f"{self.transaction_type} - {self.product.name} ({self.quantity})"
+
+# ==========================================
+# 10. 🛒 Phase 4: ระบบจัดซื้อ (Purchasing)
+# ==========================================
+
+class PurchaseOrder(models.Model):
+    PO_STATUS = [
+        ('PENDING', '📝 รอดำเนินการ (Draft)'),
+        ('ORDERED', '📞 สั่งของแล้ว (Ordered)'),
+        ('RECEIVED', '✅ รับของแล้ว (Received)'),
+        ('CANCELLED', '❌ ยกเลิก (Cancelled)'),
+    ]
+
+    po_number = models.CharField(max_length=20, unique=True, verbose_name="เลขที่ใบสั่งซื้อ")
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, verbose_name="ซัพพลายเออร์")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name="ผู้สั่งซื้อ")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    order_date = models.DateField(default=timezone.now, verbose_name="วันที่สั่ง")
+    status = models.CharField(max_length=10, choices=PO_STATUS, default='PENDING')
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="ยอดรวม")
+    note = models.TextField(blank=True, null=True, verbose_name="หมายเหตุ")
+
+    def __str__(self):
+        return f"{self.po_number} - {self.supplier.name}"
+
+class PurchaseOrderItem(models.Model):
+    purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.IntegerField(default=1, verbose_name="จำนวน")
+    unit_price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="ราคาต่อหน่วย (ทุน)")
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="ราคารวม")
+
+    def save(self, *args, **kwargs):
+        self.total_price = self.quantity * self.unit_price
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.product.name} ({self.quantity})"

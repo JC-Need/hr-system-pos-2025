@@ -1,0 +1,153 @@
+{% extends 'employees/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid mt-4 px-4">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-4 rounded shadow-sm border-start border-5 border-primary">
+        <div>
+            <h5 class="text-muted mb-1">ใบสั่งซื้อ (Purchase Order)</h5>
+            <h2 class="fw-bold text-primary m-0">#{{ po.po_number }}</h2>
+        </div>
+        <div class="text-end">
+            <h5 class="fw-bold mb-1">{{ po.supplier.name }}</h5>
+            <p class="mb-0 text-muted">
+                <i class="fas fa-calendar-alt me-1"></i> {{ po.order_date|date:"d M Y" }} | 
+                <i class="fas fa-user-tie me-1"></i> {{ po.created_by.first_name }}
+            </p>
+        </div>
+        <div class="ms-4">
+            {% if po.status == 'PENDING' %}
+                <span class="badge bg-warning text-dark fs-5 px-4 py-2 rounded-pill shadow-sm">
+                    <i class="fas fa-clock me-2"></i>รอรับของ
+                </span>
+            {% else %}
+                <span class="badge bg-success fs-5 px-4 py-2 rounded-pill shadow-sm">
+                    <i class="fas fa-check-circle me-2"></i>ได้รับของแล้ว
+                </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4 border-0">
+                <div class="card-header bg-primary text-white py-3">
+                    <h5 class="m-0 fw-bold"><i class="fas fa-list me-2"></i>รายการสินค้าในบิล</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4 py-3">สินค้า</th>
+                                <th class="text-center">ประเภท</th>
+                                <th class="text-end">จำนวน</th>
+                                <th class="text-end">ราคา/หน่วย</th>
+                                <th class="text-end pe-4">รวม (บาท)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in po.items.all %}
+                            <tr>
+                                <td class="ps-4 fw-bold text-dark">{{ item.product.name }}</td>
+                                <td class="text-center">
+                                    {% if item.product.product_type == 'RM' %}
+                                        <span class="badge bg-warning text-dark">วัตถุดิบ</span>
+                                    {% else %}
+                                        <span class="badge bg-success">สินค้าขาย</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end fs-5">{{ item.quantity|intcomma }}</td>
+                                <td class="text-end text-muted">{{ item.unit_price|intcomma }}</td>
+                                <td class="text-end pe-4 fw-bold text-primary fs-5">{{ item.total_price|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted bg-light">
+                                    <i class="fas fa-box-open fa-3x mb-3 text-secondary"></i><br>
+                                    ยังไม่มีรายการสินค้า <br>
+                                    <small>กรุณาเพิ่มสินค้าจากฟอร์มด้านขวา 👉</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-light">
+                            <tr>
+                                <td colspan="4" class="text-end fw-bold pt-3 fs-5">ยอดรวมสุทธิ:</td>
+                                <td class="text-end fw-bold fs-4 text-success pe-4 pt-3">฿{{ po.total_amount|intcomma }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <a href="{% url 'po_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>กลับหน้ารายการ
+            </a>
+
+            {% if po.status == 'PENDING' and po.items.count > 0 %}
+            <div class="card shadow-sm border-success mt-4 mb-5">
+                <div class="card-body text-center p-4 bg-success bg-opacity-10">
+                    <h4 class="fw-bold text-success mb-3">🚚 สินค้ามาส่งแล้วใช่ไหม?</h4>
+                    <p class="text-muted">เมื่อตรวจสอบสินค้าครบถ้วนแล้ว กดปุ่มด้านล่างเพื่อรับเข้าสต็อก</p>
+                    <a href="{% url 'po_receive' po.id %}" class="btn btn-success btn-lg px-5 py-3 rounded-pill shadow fw-bold hover-scale" 
+                       onclick="return confirm('⚠️ ยืนยันการรับสินค้า? \n\nสต็อกสินค้าทั้งหมดในรายการนี้จะถูกเพิ่มเข้าคลังทันที!');">
+                        <i class="fas fa-dolly me-2"></i> ยืนยันรับของเข้าสต็อก (Confirm Receive)
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if po.status == 'PENDING' %}
+        <div class="col-lg-4">
+            <div class="card shadow border-0 sticky-top" style="top: 20px; z-index: 1;">
+                <div class="card-header bg-dark text-white py-3">
+                    <h5 class="m-0 fw-bold"><i class="fas fa-plus-circle me-2"></i>เพิ่มรายการสินค้า</h5>
+                </div>
+                <div class="card-body p-4 bg-light">
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">เลือกสินค้า/วัตถุดิบ</label>
+                            <select name="product_id" class="form-select form-select-lg" required>
+                                <option value="" selected disabled>-- ค้นหาสินค้า --</option>
+                                {% for p in products %}
+                                <option value="{{ p.id }}">
+                                    {{ p.name }} (คงเหลือ: {{ p.stock }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-bold">จำนวนที่สั่ง</label>
+                                <input type="number" name="quantity" class="form-control form-control-lg" placeholder="0" step="0.01" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label fw-bold">ต้นทุนต่อหน่วย</label>
+                                <input type="number" name="price" class="form-control form-control-lg" placeholder="0.00" step="0.01" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-dark w-100 btn-lg rounded-pill shadow-sm hover-scale">
+                            <i class="fas fa-plus me-2"></i> เพิ่มลงในบิล
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .hover-scale:hover {
+        transform: scale(1.02);
+        transition: transform 0.2s;
+    }
+</style>
+{% endblock %}
+
