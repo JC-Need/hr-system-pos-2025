@@ -9,8 +9,8 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 # ✅ Import Models & Forms
-from .models import Employee, Attendance, LeaveRequest, Product, Order, OrderItem, Category, Supplier, StockTransaction, PurchaseOrder, PurchaseOrderItem
-from .forms import LeaveRequestForm, ProductForm, SupplierForm, PurchaseOrderForm
+from .models import Employee, Attendance, LeaveRequest, Product, Order, OrderItem, Category, Supplier, StockTransaction, PurchaseOrder, PurchaseOrderItem, BOMItem, ProductionOrder
+from .forms import LeaveRequestForm, ProductForm, SupplierForm, PurchaseOrderForm, BOMForm
 from django.contrib.auth.models import User
 
 import datetime
@@ -71,163 +71,149 @@ def home(request):
     return render(request, 'employees/home.html', {'form': form})
 
 # ==========================================
-# 1. Dashboard (Main Dashboard)
+# 1. Dashboard (Main Router & CEO Hub)
 # ==========================================
 @login_required
 def dashboard(request):
-    view_mode = request.GET.get('view', 'all')
+    """
+    หน้าแรก (Landing Page):
+    - CEO: เห็นเมนูรวมทุกแผนก
+    - พนักงาน: เด้งไปหน้า Dashboard แผนกตัวเองทันที
+    """
     emp = get_employee_from_user(request.user)
+    view_mode = request.GET.get('view', 'all')
+
+    # --- 1. ระบบ Auto-Redirect สำหรับพนักงาน (ไม่ใช่ CEO) ---
+    is_ceo = request.user.is_superuser or request.user.username == 'jcneed1975'
+
+    if not is_ceo:
+        if emp:
+            dept = str(emp.department)
+            if dept == 'Sales': return redirect('sales_dashboard')
+            elif dept == 'Human Resources': return redirect('hr_dashboard')
+            elif dept == 'Purchasing': return redirect('purchasing_dashboard')
+            elif dept == 'Warehouse': return redirect('inventory_dashboard')
+            elif dept == 'Production': return redirect('production_dept_dashboard')
+            # แผนกอื่นๆ ไปหน้าประวัติ
+            elif dept not in ['Management', 'CEO']:
+                return redirect('employee_detail', emp_id=emp.id)
+
+    # --- 2. ระบบ CEO กดเลือกแผนก (Manual Redirect) ---
+    if view_mode == 'Sales': return redirect('sales_dashboard')
+    elif view_mode == 'Human Resources': return redirect('hr_dashboard')
+    elif view_mode == 'Purchasing': return redirect('purchasing_dashboard')
+    elif view_mode == 'Warehouse': return redirect('inventory_dashboard')
+    elif view_mode == 'Production': return redirect('production_dept_dashboard')
+
+    # --- 3. ข้อมูลสำหรับหน้าเมนูรวม (CEO Overview) ---
     today = timezone.localtime(timezone.now()).date()
     all_departments = Employee.objects.exclude(department__isnull=True).exclude(department__exact='').values_list('department', flat=True).distinct().order_by('department')
 
-    show_sales = False
-    show_hr = False
-    current_dept_view = "ภาพรวมบริษัท"
+    context = {
+        'today': today,
+        'all_departments': all_departments,
+        'current_emp_id': emp.id if emp else None,
+        'role_name': "CEO / Admin" if is_ceo else emp.position,
+    }
+    return render(request, 'employees/dashboard.html', context)
 
-    is_ceo = request.user.username == 'jcneed1975' or request.user.is_superuser
+# ==========================================
+# 📊 Sales Dashboard (แยกหน้าใหม่)
+# ==========================================
+@login_required
+def sales_dashboard(request):
+    today = timezone.localtime(timezone.now()).date()
 
-    if is_ceo:
-        if view_mode == 'all':
-            show_hr = True
-            show_sales = True
-            current_dept_view = "ภาพรวม (CEO Dashboard)"
-        else:
-            current_dept_view = f"แผนก {view_mode}"
-            if view_mode == 'Human Resources':
-                show_hr = True
-            elif view_mode == 'Sales':
-                show_sales = True
+    # Filter Date
+    sales_start = today
+    sales_end = today
+    req_start = request.GET.get('sales_start')
+    req_end = request.GET.get('sales_end')
+    if req_start and req_end:
+        try:
+            sales_start = datetime.datetime.strptime(req_start, '%Y-%m-%d').date()
+            sales_end = datetime.datetime.strptime(req_end, '%Y-%m-%d').date()
+        except: pass
 
-    elif emp:
-        dept = str(emp.department)
-        if 'CEO' in emp.position or dept == 'Management':
-            show_sales = True
-            show_hr = True
-            current_dept_view = "ผู้บริหาร"
-        elif dept == 'Sales':
-            show_sales = True
-        elif dept == 'Purchasing':
-            return redirect('purchasing_dashboard')
-        elif dept == 'Warehouse':
-            return redirect('inventory_dashboard')
-        elif dept == 'Human Resources':
-            show_hr = True
-        else:
-            return redirect('employee_detail', emp_id=emp.id)
+    # KPIs
+    period_sales = Order.objects.filter(order_date__date__range=[sales_start, sales_end]).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+    period_orders = Order.objects.filter(order_date__date__range=[sales_start, sales_end]).count()
+    period_items = OrderItem.objects.filter(order__order_date__date__range=[sales_start, sales_end]).aggregate(Sum('quantity'))['quantity__sum'] or 0
+
+    # กราฟยอดขาย (Line Chart)
+    sales_labels = []
+    sales_data = []
+    delta = (sales_end - sales_start).days
+    for i in range(delta + 1):
+        d = sales_start + timedelta(days=i)
+        sales_labels.append(d.strftime('%d/%m'))
+        val = Order.objects.filter(order_date__date=d).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+        sales_data.append(float(val))
+
+    # สินค้าขายดี (Pie Chart)
+    top_items = OrderItem.objects.filter(order__order_date__date__range=[sales_start, sales_end]).values('product__name').annotate(qty=Sum('quantity')).order_by('-qty')[:5]
+    top_labels = [i['product__name'] for i in top_items]
+    top_data = [i['qty'] for i in top_items]
+
+    # กิจกรรมล่าสุด
+    recent_orders = Order.objects.filter(order_date__date=today).order_by('-order_date')[:10]
 
     context = {
-        'role_name': "CEO / Admin" if is_ceo else emp.position,
-        'current_emp_id': emp.id if emp else None,
         'today': today,
-        'show_sales': show_sales,
-        'show_hr': show_hr,
-        'view_mode': view_mode,
-        'all_departments': all_departments,
-        'current_dept_view': current_dept_view,
-        'pie_data': '[]', 'bar_labels': '[]', 'bar_data': '[]',
-        'sales_chart_data': '[]', 'sales_labels': '[]',
-        'top_prod_labels': '[]', 'top_prod_data': '[]',
-        'total_employees': 0, 'total_salary': "0.00", 'pending_leaves': 0, 'absent_today': 0,
-        'dept_summary': [], 'activities': [],
-        'period_sales_amount': "0.00", 'sales_today': "0.00", 'sales_month': "0.00",
-        'period_orders_count': 0, 'period_items_sold': 0, 'low_stock_count': 0, 'total_products': 0,
-        'filter_start': '', 'filter_end': '',
+        'filter_start': sales_start.strftime('%Y-%m-%d'),
+        'filter_end': sales_end.strftime('%Y-%m-%d'),
+        'period_sales': "{:,.2f}".format(period_sales),
+        'period_orders': period_orders,
+        'period_items': period_items,
+        'sales_labels': json.dumps(sales_labels),
+        'sales_data': json.dumps(sales_data),
+        'top_labels': json.dumps(top_labels),
+        'top_data': json.dumps(top_data),
+        'recent_orders': recent_orders,
     }
+    return render(request, 'employees/sales_dashboard.html', context)
 
-    if show_hr:
-        total_employees = Employee.objects.count()
-        total_salary = Employee.objects.aggregate(Sum('base_allowance'))['base_allowance__sum'] or 0
-        pending_leaves = LeaveRequest.objects.filter(status='PENDING').count()
-        present_count = Attendance.objects.filter(date=today).count()
-        absent_today = total_employees - present_count
+# ==========================================
+# 🏢 HR Dashboard (แยกหน้าใหม่)
+# ==========================================
+@login_required
+def hr_dashboard(request):
+    today = timezone.localtime(timezone.now()).date()
 
-        bar_labels = []
-        bar_data = []
-        for i in range(6, -1, -1):
-            d = today - timedelta(days=i)
-            bar_labels.append(d.strftime('%d/%m'))
-            bar_data.append(Attendance.objects.filter(date=d).count())
+    # KPIs
+    total_emps = Employee.objects.count()
+    total_salary = Employee.objects.aggregate(Sum('base_allowance'))['base_allowance__sum'] or 0
+    pending_leaves = LeaveRequest.objects.filter(status='PENDING').count()
 
-        start_work_time = datetime.time(9, 0, 0)
-        late_count = Attendance.objects.filter(date=today, time_in__gt=start_work_time).count()
-        on_time_count = present_count - late_count
-        dept_summary = Employee.objects.values('department').annotate(
-            count=Count('id'), total_salary=Sum('base_allowance')
-        ).order_by('-total_salary')
+    # Attendance
+    present = Attendance.objects.filter(date=today).count()
+    absent = total_emps - present
+    late_count = Attendance.objects.filter(date=today, time_in__gt=datetime.time(9,0)).count()
+    on_time = present - late_count
 
-        context.update({
-            'total_employees': total_employees, 'total_salary': "{:,.2f}".format(total_salary),
-            'pending_leaves': pending_leaves, 'absent_today': absent_today,
-            'bar_labels': json.dumps(bar_labels), 'bar_data': json.dumps(bar_data),
-            'pie_data': json.dumps([on_time_count, late_count, absent_today]),
-            'dept_summary': dept_summary,
-        })
+    # กราฟการมาทำงาน 7 วัน
+    bar_labels = []
+    bar_data = []
+    for i in range(6, -1, -1):
+        d = today - timedelta(days=i)
+        bar_labels.append(d.strftime('%d/%m'))
+        bar_data.append(Attendance.objects.filter(date=d).count())
 
-        atts = Attendance.objects.filter(date=today).exclude(time_in__isnull=True)
-        for a in atts:
-            is_late = a.time_in > datetime.time(9, 0)
-            context['activities'].append({
-                'timestamp': datetime.datetime.combine(today, a.time_in),
-                'time_show': a.time_in.strftime('%H:%M'),
-                'icon': 'fa-fingerprint', 'color': 'text-warning' if is_late else 'text-success',
-                'bg': 'bg-warning-subtle' if is_late else 'bg-success-subtle',
-                'title': f"{a.employee.first_name} ลงเวลา", 'detail': "⚠️ มาสาย" if is_late else "✅ ปกติ"
-            })
+    # กิจกรรมล่าสุด
+    recent_atts = Attendance.objects.filter(date=today).order_by('-time_in')[:10]
 
-    if show_sales:
-        sales_start = today
-        sales_end = today
-        req_start = request.GET.get('sales_start')
-        req_end = request.GET.get('sales_end')
-        if req_start and req_end:
-            try:
-                sales_start = datetime.datetime.strptime(req_start, '%Y-%m-%d').date()
-                sales_end = datetime.datetime.strptime(req_end, '%Y-%m-%d').date()
-            except: pass
-
-        context['filter_start'] = sales_start.strftime('%Y-%m-%d')
-        context['filter_end'] = sales_end.strftime('%Y-%m-%d')
-
-        period_sales_amount = Order.objects.filter(order_date__date__range=[sales_start, sales_end]).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-        period_orders_count = Order.objects.filter(order_date__date__range=[sales_start, sales_end]).count()
-        period_items_sold = OrderItem.objects.filter(order__order_date__date__range=[sales_start, sales_end]).aggregate(Sum('quantity'))['quantity__sum'] or 0
-        sales_today = Order.objects.filter(order_date__date=today).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-        sales_month = Order.objects.filter(order_date__month=today.month, order_date__year=today.year).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-        low_stock_count = Product.objects.filter(stock__lte=10).count()
-        total_products = Product.objects.filter(is_active=True).count()
-
-        sales_labels = []
-        sales_chart_data = []
-        delta_days = (sales_end - sales_start).days
-        date_list = [sales_start + timedelta(days=i) for i in range(delta_days + 1)]
-        for d in date_list:
-            sales_labels.append(d.strftime('%d/%m'))
-            val = Order.objects.filter(order_date__date=d).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
-            sales_chart_data.append(float(val))
-
-        top_products = OrderItem.objects.filter(order__order_date__date__range=[sales_start, sales_end]).values('product__name').annotate(total_qty=Sum('quantity')).order_by('-total_qty')[:5]
-        top_prod_labels = [item['product__name'] for item in top_products]
-        top_prod_data = [item['total_qty'] for item in top_products]
-
-        context.update({
-            'period_sales_amount': "{:,.2f}".format(period_sales_amount), 'sales_today': "{:,.2f}".format(sales_today), 'sales_month': "{:,.2f}".format(sales_month),
-            'period_orders_count': period_orders_count, 'period_items_sold': period_items_sold, 'low_stock_count': low_stock_count, 'total_products': total_products,
-            'sales_labels': json.dumps(sales_labels), 'sales_chart_data': json.dumps(sales_chart_data),
-            'top_prod_labels': json.dumps(top_prod_labels), 'top_prod_data': json.dumps(top_prod_data),
-        })
-
-        orders = Order.objects.filter(order_date__date=today)
-        for o in orders:
-            context['activities'].append({
-                'timestamp': o.order_date, 'time_show': timezone.localtime(o.order_date).strftime('%H:%M'),
-                'icon': 'fa-cash-register', 'color': 'text-info', 'bg': 'bg-info-subtle',
-                'title': f"{o.employee.first_name} ขาย (POS)", 'detail': f"💰 ฿{o.total_amount:,.0f}"
-            })
-
-    context['activities'].sort(key=lambda x: x.get('timestamp', timezone.now()), reverse=True)
-    context['activities'] = context['activities'][:10]
-
-    return render(request, 'employees/dashboard.html', context)
+    context = {
+        'today': today,
+        'total_emps': total_emps,
+        'total_salary': "{:,.2f}".format(total_salary),
+        'pending_leaves': pending_leaves,
+        'absent': absent,
+        'pie_data': json.dumps([on_time, late_count, absent]),
+        'bar_labels': json.dumps(bar_labels),
+        'bar_data': json.dumps(bar_data),
+        'recent_atts': recent_atts,
+    }
+    return render(request, 'employees/hr_dashboard.html', context)
 
 # ==========================================
 # 2. หน้าประวัติพนักงาน
@@ -673,3 +659,272 @@ def po_receive(request, po_id):
         messages.success(request, f"✅ รับของเข้าคลังเรียบร้อย! (PO: {po.po_number})")
 
     return redirect('po_list')
+
+# ==========================================
+# 🏭 11. ระบบผลิต (Manufacturing System) - Phase 4
+# ==========================================
+
+@login_required
+def manufacturing_dashboard(request):
+    # 1. สรุปยอดผลิต
+    pending_orders = ProductionOrder.objects.filter(status='PENDING').count()
+    in_progress_orders = ProductionOrder.objects.filter(status='IN_PROGRESS').count()
+    completed_today = ProductionOrder.objects.filter(status='COMPLETED', updated_at__date=timezone.now().date()).count()
+
+    # 2. รายการใบสั่งผลิตทั้งหมด (เรียงจากใหม่ไปเก่า)
+    orders = ProductionOrder.objects.all().order_by('-created_at')
+
+    # 3. สินค้าที่ผลิตได้ (ที่มีสูตร BOM แล้ว)
+    producible_products = Product.objects.filter(product_type='FG', bom_items__isnull=False).distinct()
+
+    # --- เตรียมข้อมูลสำหรับ Form สร้างสูตร (BOM) ---
+    all_fgs = Product.objects.filter(product_type='FG') # ดึงสินค้า FG ทั้งหมด
+    all_rms = Product.objects.filter(product_type='RM') # ดึงวัตถุดิบ RM ทั้งหมด
+
+    # ✅ ดึงหมวดหมู่ทั้งหมดมาใช้กรอง Dropdown
+    all_categories = Category.objects.all()
+
+    context = {
+        'pending_orders': pending_orders,
+        'in_progress_orders': in_progress_orders,
+        'completed_today': completed_today,
+        'orders': orders,
+        'producible_products': producible_products,
+        'all_fgs': all_fgs,
+        'all_rms': all_rms,
+        # ✅ เพิ่มหมวดหมู่เข้าไป
+        'all_categories': all_categories,
+    }
+    return render(request, 'employees/manufacturing_dashboard.html', context)
+
+@login_required
+def mo_create(request):
+    """ สร้างใบสั่งผลิตพร้อมเลข JOB (Format: JOB6812xxx) """
+    if request.method == 'POST':
+        product_id = request.POST.get('product_id')
+        quantity = int(request.POST.get('quantity', 1))
+
+        product = get_object_or_404(Product, pk=product_id)
+
+        # --- สูตรคำนวณเลข JOB (รันตาม ปี-เดือน) ---
+        now = datetime.datetime.now()
+        thai_year = (now.year + 543) % 100  # แปลงปี ค.ศ. เป็น พ.ศ. 2 หลัก (เช่น 2568 -> 68)
+        month = now.strftime('%m')          # เดือน 2 หลัก (เช่น 12)
+        prefix = f"JOB{thai_year}{month}"   # จะได้คำนำหน้า เช่น "JOB6812"
+
+        # ค้นหาใบงานล่าสุดที่มีเลขขึ้นต้นด้วย prefix นี้
+        last_job = ProductionOrder.objects.filter(job_number__startswith=prefix).order_by('job_number').last()
+
+        if last_job and last_job.job_number:
+            # ถ้ามีของเก่า ให้ตัดเอา 3 ตัวท้ายมาบวก 1
+            try:
+                # เช่น JOB6812005 -> เอา "005" มาบวก 1 เป็น 6
+                last_seq = int(last_job.job_number[-3:])
+                new_seq = last_seq + 1
+            except ValueError:
+                new_seq = 1
+        else:
+            # ถ้ายังไม่มีของเดือนนี้ ให้เริ่มที่ 1
+            new_seq = 1
+
+        # ประกอบร่างเป็นเลข JOB เต็มๆ (เช่น JOB6812001)
+        new_job_number = f"{prefix}{new_seq:03d}"
+        # -------------------------------------------
+
+        # บันทึกลงฐานข้อมูล
+        ProductionOrder.objects.create(
+            job_number=new_job_number,  # บันทึกเลข JOB ที่สร้างใหม่
+            product=product,
+            quantity=quantity,
+            created_by=request.user,
+            status='PENDING',
+            note="สั่งผลิตผ่าน Dashboard"
+        )
+
+        messages.success(request, f"✅ เปิดใบงาน {new_job_number} สำเร็จ!")
+        return redirect('manufacturing_dashboard')
+
+    return redirect('manufacturing_dashboard')
+
+@login_required
+def mo_complete(request, mo_id):
+    """
+    🔥 หัวใจสำคัญ: กดจบงานผลิต
+    1. เช็กสูตร (BOM)
+    2. เช็กวัตถุดิบ (RM) ว่าพอไหม?
+    3. ตัดสต็อก RM -> เพิ่มสต็อก FG
+    """
+    mo = get_object_or_404(ProductionOrder, pk=mo_id)
+
+    if mo.status == 'COMPLETED':
+        messages.warning(request, "ใบงานนี้ผลิตเสร็จไปแล้ว!")
+        return redirect('manufacturing_dashboard')
+
+    # 1. ดึงสูตรการผลิต (BOM)
+    bom_items = BOMItem.objects.filter(finished_good=mo.product)
+
+    if not bom_items.exists():
+        messages.error(request, f"❌ ไม่พบสูตรการผลิตสำหรับ {mo.product.name} กรุณาตั้งค่า BOM ในหน้า Admin ก่อน")
+        return redirect('manufacturing_dashboard')
+
+    # 2. ตรวจสอบสต็อกวัตถุดิบก่อน (Check Stock)
+    for item in bom_items:
+        required_qty = item.quantity * mo.quantity
+        if item.raw_material.stock < required_qty:
+            messages.error(request, f"❌ วัตถุดิบไม่พอ! ({item.raw_material.name} ขาด {required_qty - item.raw_material.stock})")
+            return redirect('manufacturing_dashboard')
+
+    # 3. ถ้าของพอ -> ลุยตัดสต็อกจริง! (Deduct Stock)
+    for item in bom_items:
+        required_qty = item.quantity * mo.quantity
+        item.raw_material.stock -= required_qty
+        item.raw_material.save()
+
+        # บันทึกประวัติการใช้วัตถุดิบ
+        StockTransaction.objects.create(
+            product=item.raw_material,
+            transaction_type='OUT',
+            quantity=required_qty,
+            created_by=request.user,
+            note=f"ใช้ผลิต {mo.product.name} (MO-{mo.id})"
+        )
+
+    # 4. เพิ่มสต็อกสินค้าสำเร็จรูป (Add FG Stock)
+    mo.product.stock += mo.quantity
+    mo.product.save()
+
+    # บันทึกประวัติรับสินค้าเข้า
+    StockTransaction.objects.create(
+        product=mo.product,
+        transaction_type='IN',
+        quantity=mo.quantity,
+        created_by=request.user,
+        note=f"ผลิตเสร็จสิ้น (MO-{mo.id})"
+    )
+
+    # 5. อัปเดตสถานะใบสั่งผลิต
+    mo.status = 'COMPLETED'
+    mo.updated_at = timezone.now()
+    mo.save()
+
+    messages.success(request, f"🎉 ผลิตเสร็จสิ้น! ได้รับ {mo.product.name} {mo.quantity} ชิ้น")
+    return redirect('manufacturing_dashboard')
+
+@login_required
+def mo_delete(request, mo_id):
+    """ ลบใบสั่งผลิต (เฉพาะที่ยังไม่เสร็จ) """
+    mo = get_object_or_404(ProductionOrder, pk=mo_id)
+    if mo.status == 'COMPLETED':
+        messages.error(request, "ไม่สามารถลบงานที่ผลิตเสร็จแล้วได้ (สต็อกตัดไปแล้ว)")
+    else:
+        mo.delete()
+        messages.success(request, "ลบใบสั่งผลิตเรียบร้อย")
+    return redirect('manufacturing_dashboard')
+
+# ==========================================
+# 🏭 ส่วนเสริม: Quick Actions (สร้างด่วน)
+# ==========================================
+
+@login_required
+def quick_create_product(request, p_type):
+    """ สร้างสินค้าด่วน (FG หรือ RM) จากหน้าผลิต """
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        category_id = request.POST.get('category')
+        price = request.POST.get('price', 0)
+        stock = request.POST.get('stock', 0)
+
+        # สร้างสินค้าใหม่
+        Product.objects.create(
+            name=name,
+            category_id=category_id if category_id else None,
+            price=price,
+            stock=stock,
+            product_type=p_type, # กำหนดประเภทตามที่ส่งมา (FG/RM)
+            is_active=True
+        )
+        type_name = "สินค้า (FG)" if p_type == 'FG' else "วัตถุดิบ (RM)"
+        messages.success(request, f"✅ สร้าง {type_name}: {name} เรียบร้อย!")
+
+    return redirect('manufacturing_dashboard')
+
+@login_required
+def quick_create_bom(request):
+    """ สร้างสูตรการผลิต (BOM) แบบ Dynamic (1 FG -> หลาย RM) """
+    if request.method == 'POST':
+        # 1. รับค่าสินค้าหลัก (FG)
+        finished_good_id = request.POST.get('finished_good')
+        finished_good = get_object_or_404(Product, pk=finished_good_id)
+
+        # 2. รับค่าวัตถุดิบเป็นลิสต์ (Arrays)
+        rm_ids = request.POST.getlist('raw_material[]')
+        quantities = request.POST.getlist('quantity[]')
+
+        saved_count = 0
+
+        # 3. วนลูปบันทึกทีละรายการ
+        for i in range(len(rm_ids)):
+            rm_id = rm_ids[i]
+            qty = quantities[i]
+
+            if rm_id and float(qty) > 0:
+                raw_material = Product.objects.get(pk=rm_id)
+
+                # สร้างหรืออัปเดตสูตร
+                BOMItem.objects.create(
+                    finished_good=finished_good,
+                    raw_material=raw_material,
+                    quantity=qty
+                )
+                saved_count += 1
+
+        if saved_count > 0:
+            messages.success(request, f"✅ บันทึกสูตรสำหรับ '{finished_good.name}' เรียบร้อย ({saved_count} วัตถุดิบ)")
+        else:
+            messages.warning(request, "⚠️ ไม่มีการบันทึกข้อมูล (กรุณาเลือกวัตถุดิบ)")
+
+    return redirect('manufacturing_dashboard')
+
+@login_required
+def production_dept_dashboard(request):
+    """
+    🏭 Production Department Dashboard (Separate Page)
+    หน้ารวม KPI, กำลังพล, และสถานะงาน สำหรับหัวหน้าฝ่ายผลิต
+    """
+    today = timezone.localtime(timezone.now()).date()
+
+    # 1. ข้อมูลกำลังพล (Manpower)
+    prod_emps = Employee.objects.filter(department='Production')
+    prod_total = prod_emps.count()
+    prod_present = Attendance.objects.filter(date=today, employee__department='Production').count()
+    prod_absent = prod_total - prod_present
+
+    # รายชื่อคนขาด/ลา (เพื่อแสดงในตาราง)
+    absent_employees = prod_emps.exclude(id__in=Attendance.objects.filter(date=today).values('employee_id'))
+
+    # 2. สถานะงาน (Job Status)
+    jobs_pending = ProductionOrder.objects.filter(status='PENDING').count()
+    jobs_wip = ProductionOrder.objects.filter(status='IN_PROGRESS').count()
+    jobs_done_today = ProductionOrder.objects.filter(status='COMPLETED', updated_at__date=today).count()
+
+    # 3. งานล่าสุด 10 รายการ
+    recent_jobs = ProductionOrder.objects.all().order_by('-updated_at')[:10]
+
+    # 4. แจ้งเตือนวัตถุดิบหมด (Material Alert)
+    low_materials = Product.objects.filter(product_type='RM', stock__lte=10)
+    low_material_count = low_materials.count()
+
+    context = {
+        'today': today,
+        'prod_total': prod_total,
+        'prod_present': prod_present,
+        'prod_absent': prod_absent,
+        'absent_employees': absent_employees,
+        'jobs_pending': jobs_pending,
+        'jobs_wip': jobs_wip,
+        'jobs_done_today': jobs_done_today,
+        'recent_jobs': recent_jobs,
+        'low_materials': low_materials,
+        'low_material_count': low_material_count,
+    }
+    return render(request, 'employees/production_dept_dashboard.html', context)

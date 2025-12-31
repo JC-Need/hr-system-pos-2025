@@ -6,57 +6,65 @@
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3 class="fw-bold text-secondary mb-1">📦 ระบบบริหารจัดการคลังสินค้า</h3>
+            <h3 class="fw-bold text-dark mb-1"><i class="fas fa-boxes me-2"></i> ระบบบริหารจัดการคลังสินค้า</h3>
             <p class="text-muted small">Warehouse Management System (WMS)</p>
         </div>
+        <div class="d-flex gap-2 align-items-center">
 
-        <div class="btn-group shadow-sm rounded-pill" role="group">
-            <a href="?type=FG" class="btn px-4 fw-bold rounded-pill-start {% if view_type == 'FG' %}btn-success{% else %}btn-outline-secondary border-0{% endif %}">
-                <i class="fas fa-box-open me-2"></i> สินค้าขาย (FG)
+            <a href="{% url 'employee_detail' request.user.employee.id|default:0 %}" class="btn btn-warning fw-bold rounded-pill shadow-sm text-dark me-2">
+                 <i class="fas fa-id-card me-1"></i> ข้อมูลส่วนตัว
             </a>
-            <a href="?type=RM" class="btn px-4 fw-bold rounded-pill-end {% if view_type == 'RM' %}btn-warning text-dark{% else %}btn-outline-secondary border-0{% endif %}">
-                <i class="fas fa-layer-group me-2"></i> วัตถุดิบ (RM)
-            </a>
+
+            <div class="btn-group shadow-sm rounded-pill" role="group">
+                <a href="?type=FG" class="btn fw-bold rounded-pill-start {% if view_type == 'FG' %}btn-success{% else %}btn-outline-success{% endif %}">
+                     <i class="fas fa-box-open me-1"></i> สินค้าขาย (FG)
+                </a>
+                <a href="?type=RM" class="btn fw-bold rounded-pill-end {% if view_type == 'RM' %}btn-warning text-dark{% else %}btn-outline-warning text-dark{% endif %}">
+                    <i class="fas fa-cubes me-1"></i> วัตถุดิบ (RM)
+                </a>
+            </div>
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm text-white mb-4 overflow-hidden" style="background: {{ bg_gradient }};">
+    <div class="card border-0 shadow-sm {% if view_type == 'RM' %}text-dark{% else %}text-white{% endif %} mb-4 overflow-hidden" style="background: {{ bg_gradient }};">
         <div class="card-body p-4 position-relative">
             <div class="row align-items-center">
                 <div class="col-md-8">
-                    <h4 class="fw-bold mb-3"><i class="fas {{ icon }} me-2"></i> {{ page_title }}
+                    <h4 class="fw-bold mb-3"><i class="fas {{ icon }} me-2"></i> {{ page_title }}</h4>
                     <div class="d-flex gap-4">
-                        <div class="border-end pe-4">
+                        <div class="border-end {% if view_type == 'RM' %}border-dark border-opacity-25{% else %}border-white border-opacity-50{% endif %} pe-4">
                             <small class="opacity-75 text-uppercase">รายการทั้งหมด</small>
                             <h2 class="fw-bold mb-0">{{ total_items }} <span class="fs-6 fw-normal">รายการ</span></h2>
                         </div>
-                        <div class="border-end pe-4">
+                        <div class="border-end {% if view_type == 'RM' %}border-dark border-opacity-25{% else %}border-white border-opacity-50{% endif %} pe-4">
                             <small class="opacity-75 text-uppercase">มูลค่าสต็อกรวม</small>
                             <h2 class="fw-bold mb-0">฿{{ total_value|intcomma }}</h2>
                         </div>
                         <div>
                             <small class="opacity-75 text-uppercase">ต้องสั่งซื้อด่วน</small>
-                            <h2 class="fw-bold mb-0 text-white bg-danger bg-opacity-25 px-2 rounded">{{ low_stock_count }} <span class="fs-6 fw-normal">รายการ</span></h2>
+                            <h2 class="fw-bold mb-0 {% if view_type == 'RM' %}text-dark bg-white{% else %}text-white bg-danger{% endif %} bg-opacity-25 px-2 rounded">
+                                {{ low_stock_count }} <span class="fs-6 fw-normal">รายการ</span>
+                            </h2>
                         </div>
                     </div>
                 </div>
+
                 <div class="col-md-4" style="z-index: 2;">
                     <div class="d-flex justify-content-end gap-2">
-
-                        <a href="{% url 'employee_detail' request.user.employee.id %}"
-                           class="btn btn-warning rounded-pill px-3 shadow-sm text-dark fw-bold hover-scale d-flex align-items-center">
-                            <i class="fas fa-id-card me-2"></i> ข้อมูลส่วนตัว
-                        </a>
-
                         <a href="{% url 'product_create' %}"
-                           class="btn btn-light text-{{ theme_color }} rounded-pill px-3 shadow-sm fw-bold hover-scale d-flex align-items-center">
-                            <i class="fas fa-plus-circle me-2"></i> เพิ่มสินค้าใหม่
+                           class="btn btn-light {% if view_type == 'RM' %}text-dark{% else %}text-{{ theme_color }}{% endif %} rounded-pill px-3 shadow-sm fw-bold hover-scale d-flex align-items-center">
+                            <i class="fas fa-plus-circle me-2"></i>
+                            {% if view_type == 'RM' %}
+                                เพิ่มวัตถุดิบใหม่
+                            {% else %}
+                                เพิ่มสินค้าใหม่
+                            {% endif %}
                         </a>
-
                     </div>
                 </div>
-            <i class="fas {{ icon }} position-absolute text-white" style="font-size: 180px; opacity: 0.15; right: -20px; bottom: -40px;"></i>
+            <i class="fas {{ icon }} position-absolute {% if view_type == 'RM' %}text-dark{% else %}text-white{% endif %}" style="font-size: 180px; opacity: 0.1; right: -20px; bottom: -40px;"></i>
         </div>
+    </div>
     </div>
 
     <div class="row">
@@ -81,7 +89,7 @@
                             {% for p in products %}
                             <tr>
                                 <td class="ps-4">
-                                    <div class="fw-bold text-dark">{{ p.name }}</div>
+                                     <div class="fw-bold text-dark">{{ p.name }}</div>
                                     <small class="text-muted">ID: {{ p.id|stringformat:"04d" }}</small>
                                 </td>
                                 <td>
@@ -109,7 +117,7 @@
                                 </td>
                                 <td class="text-center">
                                     <a href="{% url 'product_edit' p.id %}" class="btn btn-sm btn-outline-primary rounded-circle" title="แก้ไข">
-                                        <i class="fas fa-pen"></i>
+                                         <i class="fas fa-pen"></i>
                                     </a>
                                 </td>
                             </tr>
@@ -135,10 +143,10 @@
                 </div>
 
                 <div class="card-body p-0 d-flex flex-column" style="min-height: 500px;">
-                    <div class="list-group list-group-flush flex-grow-1">
+                     <div class="list-group list-group-flush flex-grow-1">
                         {% for tx in recent_transactions %}
                         <div class="list-group-item px-4 py-3 border-bottom-0">
-                            <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                           <div class="d-flex w-100 justify-content-between align-items-center mb-1">
                                 <small class="text-muted"><i class="far fa-clock me-1"></i> {{ tx.created_at|date:"d/m H:i" }}</small>
                                 {% if tx.transaction_type == 'IN' %}
                                     <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-2">
@@ -146,15 +154,15 @@
                                     </span>
                                 {% else %}
                                     <span class="badge bg-danger bg-opacity-10 text-danger rounded-pill px-2">
-                                        <i class="fas fa-arrow-up"></i> เบิกออก
+                                         <i class="fas fa-arrow-up"></i> เบิกออก
                                     </span>
                                 {% endif %}
-                            </div>
+                           </div>
                             <h6 class="mb-1 fw-bold text-dark">{{ tx.product.name }}</h6>
                             <div class="d-flex justify-content-between align-items-center mt-2">
-                                <span class="fw-bold fs-5 {% if tx.transaction_type == 'IN' %}text-success{% else %}text-danger{% endif %}">
+                                 <span class="fw-bold fs-5 {% if tx.transaction_type == 'IN' %}text-success{% else %}text-danger{% endif %}">
                                     {% if tx.transaction_type == 'IN' %}+{% else %}-{% endif %}{{ tx.quantity }}
-                                </span>
+                                 </span>
                                 <small class="text-muted fst-italic">{{ tx.note|truncatechars:15 }}</small>
                             </div>
                         </div>

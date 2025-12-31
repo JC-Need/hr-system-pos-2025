@@ -3,23 +3,20 @@
 
 {% block content %}
 <div class="container-fluid mt-4 px-4 pb-5">
-
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-primary"><i class="fas fa-chart-pie me-2"></i>Purchasing Dashboard</h2>
-            <p class="text-muted mb-0">ภาพรวมการจัดซื้อและสถานะสินค้าคงคลัง</p>
+            <h3 class="fw-bold text-primary"><i class="fas fa-shopping-cart me-2"></i> Purchasing Dashboard</h3>
+            <p class="text-muted small">ภาพรวมการจัดซื้อและสถานะสินค้าคงคลัง</p>
         </div>
-        <div>
-            <a href="{% url 'employee_detail' request.user.employee.id %}" class="btn btn-warning rounded-pill px-4 me-2 shadow-sm text-dark fw-bold">
-                <i class="fas fa-id-card me-2"></i> ข้อมูลส่วนตัว
+        <div class="d-flex gap-2">
+            <a href="{% url 'employee_detail' request.user.employee.id|default:0 %}" class="btn btn-warning fw-bold rounded-pill shadow-sm text-dark">
+                <i class="fas fa-id-card me-1"></i> ข้อมูลส่วนตัว
             </a>
-
-            <a href="{% url 'po_create' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">
-                <i class="fas fa-plus me-2"></i> เปิดใบสั่งซื้อใหม่ (New PO)
+            <a href="{% url 'po_create' %}" class="btn btn-primary fw-bold rounded-pill shadow-sm">
+                <i class="fas fa-plus me-1"></i> เปิดใบสั่งซื้อใหม่ (New PO)
             </a>
         </div>
     </div>
-
     <div class="row mb-4">
         <div class="col-md-4">
             <div class="card border-0 shadow-sm bg-primary text-white h-100">

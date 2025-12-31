@@ -1,0 +1,124 @@
+{% extends 'employees/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid mt-4 pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-primary"><i class="fas fa-chart-line me-2"></i>Sales Dashboard</h3>
+            <p class="text-muted small">ภาพรวมยอดขายประจำวันที่ {{ today|date:"d M Y" }}</p>
+        </div>
+        <div>
+            <a href="{% url 'employee_detail' request.user.employee.id|default:0 %}" class="btn btn-warning fw-bold rounded-pill shadow-sm text-dark me-1">
+                <i class="fas fa-id-card me-1"></i> ข้อมูลส่วนตัว
+            </a>
+            <a href="{% url 'pos_home' %}" class="btn btn-success rounded-pill fw-bold shadow-sm px-4">
+                <i class="fas fa-cash-register me-2"></i> เปิดระบบขาย (POS)
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-start border-4 border-primary shadow-sm h-100 py-2">
+                <div class="card-body">
+                    <div class="text-uppercase text-primary fw-bold small mb-1">ยอดขายรวม (ตามช่วงเวลา)</div>
+                    <div class="h3 fw-bold mb-0 text-dark">฿{{ period_sales_amount }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-start border-4 border-success shadow-sm h-100 py-2">
+                <div class="card-body">
+                    <div class="text-uppercase text-success fw-bold small mb-1">จำนวนบิลที่ขาย</div>
+                    <div class="h3 fw-bold mb-0 text-dark">{{ period_orders_count }} ใบ</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-start border-4 border-info shadow-sm h-100 py-2">
+                <div class="card-body">
+                    <div class="text-uppercase text-info fw-bold small mb-1">จำนวนสินค้าที่ออก</div>
+                    <div class="h3 fw-bold mb-0 text-dark">{{ period_items_sold }} ชิ้น</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm bg-light mb-4">
+        <div class="card-body py-2">
+            <form method="get" class="row g-2 align-items-center">
+                <div class="col-auto fw-bold text-secondary"><i class="fas fa-filter"></i> กรองวันที่:</div>
+                <div class="col-auto"><input type="date" name="sales_start" class="form-control form-control-sm" value="{{ filter_start }}"></div>
+                <div class="col-auto">ถึง</div>
+                <div class="col-auto"><input type="date" name="sales_end" class="form-control form-control-sm" value="{{ filter_end }}"></div>
+                <div class="col-auto"><button type="submit" class="btn btn-primary btn-sm rounded-pill px-3">อัปเดต</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-white border-bottom-0"><h6 class="m-0 fw-bold text-primary">📈 แนวโน้มยอดขายรายวัน</h6></div>
+                <div class="card-body"><canvas id="salesChart" height="300"></canvas></div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-white border-bottom-0"><h6 class="m-0 fw-bold text-info">🏆 สินค้าขายดี Top 5</h6></div>
+                <div class="card-body"><canvas id="prodChart" height="250"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 border-bottom-0"><h6 class="m-0 fw-bold text-secondary">🔔 การขายล่าสุด (Real-time)</h6></div>
+        <div class="list-group list-group-flush">
+            {% for act in activities %}
+            <div class="list-group-item px-3 py-3 border-bottom d-flex align-items-center">
+                <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2 me-3"><i class="fas fa-shopping-bag"></i></div>
+                <div>
+                    <div class="fw-bold text-dark">{{ act.title }}</div>
+                    <small class="text-muted">{{ act.detail }} - {{ act.time }}</small>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-4 text-muted">ยังไม่มีรายการขายวันนี้</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Sales Line Chart
+    new Chart(document.getElementById("salesChart"), {
+        type: 'line',
+        data: {
+            labels: JSON.parse('{{ sales_labels|safe }}'),
+            datasets: [{
+                label: "ยอดขาย (บาท)",
+                borderColor: "#4e73df",
+                backgroundColor: "rgba(78, 115, 223, 0.05)",
+                data: JSON.parse('{{ sales_chart_data|safe }}'),
+                tension: 0.3, fill: true
+            }]
+        },
+        options: { maintainAspectRatio: false }
+    });
+
+    // Product Pie Chart
+    new Chart(document.getElementById("prodChart"), {
+        type: 'doughnut',
+        data: {
+            labels: JSON.parse('{{ top_prod_labels|safe }}'),
+            datasets: [{
+                data: JSON.parse('{{ top_prod_data|safe }}'),
+                backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b']
+            }]
+        },
+        options: { maintainAspectRatio: false, cutout: '65%' }
+    });
+</script>
+{% endblock %}

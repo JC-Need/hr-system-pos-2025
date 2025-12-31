@@ -2,311 +2,116 @@
 {% load humanize %}
 
 {% block content %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<style>
-    .flatpickr-input { background-color: #fff !important; cursor: pointer; }
-    .btn-profile-link:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2) !important; }
-</style>
-
-<div class="container-fluid mt-4 pb-5">
-
-    {% if request.user.is_superuser or request.user.username == 'jcneed1975' %}
-    <div class="row mb-4">
-        <div class="col-12 text-center">
-            <div class="card shadow-sm p-3 border-0 bg-light d-inline-block rounded-pill">
-                <div class="btn-group" role="group">
-                    <a href="{% url 'dashboard' %}?view=all" class="btn rounded-pill px-4 fw-bold {% if not view_mode or view_mode == 'all' %}btn-dark{% else %}btn-outline-dark border-0{% endif %}">
-                        <i class="fas fa-tachometer-alt me-2"></i> ภาพรวม (CEO)
-                    </a>
-
-                    {% for dept in all_departments %}
-                        <a href="{% if dept == 'Purchasing' %}{% url 'purchasing_dashboard' %}{% elif dept == 'Warehouse' %}{% url 'inventory_dashboard' %}{% else %}{% url 'dashboard' %}?view={{ dept }}{% endif %}"
-                           class="btn rounded-pill px-3 fw-bold ms-1 mb-2 {% if view_mode == dept %}btn-primary shadow{% else %}btn-outline-secondary border-0{% endif %}">
-
-                            {% if dept == 'Sales' %}
-                                <i class="fas fa-store me-1"></i> ฝ่ายขาย (Sales)
-                            {% elif dept == 'Human Resources' %}
-                                <i class="fas fa-users me-1"></i> ฝ่ายบุคคล (HR)
-                            {% elif dept == 'IT Support' %}
-                                <i class="fas fa-laptop-code me-1"></i> ฝ่ายไอที (IT)
-                            {% elif dept == 'Finance' %}
-                                <i class="fas fa-coins me-1"></i> ฝ่ายการเงิน (Finance)
-                            {% elif dept == 'Marketing' %}
-                                <i class="fas fa-bullhorn me-1"></i> ฝ่ายการตลาด (MKT)
-                            {% elif dept == 'Warehouse' %}
-                                <i class="fas fa-warehouse me-1"></i> คลังสินค้า (Warehouse)
-                            {% elif dept == 'Operations' %}
-                                <i class="fas fa-cogs me-1"></i> ฝ่ายปฏิบัติการ (Ops)
-                            {% elif dept == 'Management' %}
-                                <i class="fas fa-tie me-1"></i> ฝ่ายบริหาร (Mgt)
-                            {% elif dept == 'Purchasing' %}
-                                <i class="fas fa-shopping-cart me-1"></i> จัดซื้อ (Purchasing)
-                            {% else %}
-                                <i class="fas fa-building me-1"></i> {{ dept }}
-                            {% endif %}
-                        </a>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="mt-2 text-muted small">
-                <i class="fas fa-eye me-1"></i> กำลังแสดงผล: <strong>{{ current_dept_view|default:"ภาพรวมบริษัท" }}</strong>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if show_sales %}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm bg-primary text-white overflow-hidden">
-                <div class="card-body p-4 d-flex justify-content-between align-items-center position-relative">
-                    <div style="z-index: 1;">
-                        <h2 class="fw-bold mb-1">🏪 ระบบขายหน้าร้าน (POS)</h2>
-                        <div class="mt-2">
-                            {% if current_emp_id %}
-                                <a href="{% url 'employee_detail' current_emp_id %}" class="btn btn-warning btn-sm text-dark fw-bold rounded-pill shadow-sm btn-profile-link border-2 border-white">
-                                    <i class="fas fa-user-circle me-1"></i> {{ role_name }} (ข้อมูลส่วนตัว)
-                                </a>
-                            {% else %}
-                                <span class="badge bg-warning text-dark">สถานะ: {{ role_name }}</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <a href="{% url 'pos_home' %}" class="btn btn-light text-primary fw-bold px-4 py-2 rounded-pill shadow" style="z-index: 1;">
-                        <i class="fas fa-play me-1"></i> เริ่มขายเลย
-                    </a>
-                    <i class="fas fa-shopping-basket position-absolute text-white" style="font-size: 150px; opacity: 0.15; right: -20px; top: -30px;"></i>
-                </div>
-            </div>
-        </div>
+<div class="container-fluid mt-5">
+    
+    <div class="text-center mb-5">
+        <h1 class="fw-bold text-dark"><i class="fas fa-building text-primary me-2"></i>JC Company Headquarters</h1>
+        <p class="text-muted">ศูนย์บัญชาการหลัก - กรุณาเลือกแผนกเพื่อเข้าสู่ Dashboard</p>
     </div>
 
-    <div class="row g-2 align-items-center mb-3">
-        <div class="col-12">
-            <div class="card shadow-sm border-0 bg-light">
-                <div class="card-body py-2">
-                    <form method="get" class="row g-2 align-items-center">
-                        <input type="hidden" name="view" value="{{ view_mode }}">
-
-                        <div class="col-auto"><span class="fw-bold text-success"><i class="fas fa-filter me-1"></i> ช่วงเวลาขาย:</span></div>
-                        <div class="col-auto"><div class="input-group input-group-sm"><span class="input-group-text bg-white">เริ่ม</span><input type="text" name="sales_start" class="form-control datepicker text-center" value="{{ filter_start }}" autocomplete="off" placeholder="วว/ดด/ปปปป"></div></div>
-                        <div class="col-auto"><div class="input-group input-group-sm"><span class="input-group-text bg-white">ถึง</span><input type="text" name="sales_end" class="form-control datepicker text-center" value="{{ filter_end }}" autocomplete="off" placeholder="วว/ดด/ปปปป"></div></div>
-                        <div class="col-auto"><button type="submit" class="btn btn-primary btn-sm px-3 shadow-sm">คำนวณ</button></div>
-
-                        <div class="col-auto ps-3 border-start ms-2">
-                            <a href="?view={{ view_mode }}&sales_start={{ today|date:'Y-m-d' }}&sales_end={{ today|date:'Y-m-d' }}"
-                               class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" title="ดูยอดขายเฉพาะวันนี้">
-                                <i class="fas fa-calendar-day text-primary"></i> วันนี้
-                            </a>
-                            <a href="?view={{ view_mode }}&sales_start={{ today|date:'Y-m-01' }}&sales_end={{ today|date:'Y-m-t' }}"
-                               class="btn btn-outline-secondary btn-sm fw-bold shadow-sm" title="ดูยอดขายทั้งเดือนนี้">
-                                <i class="fas fa-calendar-alt text-success"></i> เดือนนี้
-                            </a>
+    <div class="row justify-content-center g-4">
+        
+        <div class="col-md-3">
+            <a href="{% url 'hr_dashboard' %}" class="card border-0 shadow-sm text-decoration-none hover-card h-100 border-bottom border-4 border-success">
+                <div class="card-body text-center p-4">
+                    <div class="bg-success bg-opacity-10 text-success rounded-circle d-inline-flex p-4 mb-3">
+                        <i class="fas fa-users fa-3x"></i>
+                    </div>
+                    <h4 class="fw-bold text-dark">ฝ่ายบุคคล (HR)</h4>
+                    <p class="text-muted small mb-3">พนักงาน, เงินเดือน, การลา</p>
+                    
+                    <div class="bg-light rounded p-2 text-start">
+                        <div class="d-flex justify-content-between small">
+                            <span class="text-muted">มาทำงาน:</span>
+                            <span class="fw-bold text-success">{{ total_emp_present }} คน</span>
                         </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-3 mb-4">
-        <div class="col-md-3"><div class="card bg-white border-start border-4 border-info shadow-sm h-100 py-2"><div class="card-body"><div class="text-xs font-weight-bold text-info text-uppercase mb-1">บิลขาย</div><div class="h3 mb-0 fw-bold text-gray-800">{{ period_orders_count }} ใบ</div></div></div></div>
-        <div class="col-md-3"><div class="card bg-white border-start border-4 border-primary shadow-sm h-100 py-2"><div class="card-body"><div class="text-xs font-weight-bold text-primary text-uppercase mb-1">ชิ้นที่ขาย</div><div class="h3 mb-0 fw-bold text-gray-800">{{ period_items_sold }} ชิ้น</div></div></div></div>
-        <div class="col-md-3"><div class="card bg-white border-start border-4 border-danger shadow-sm h-100 py-2"><div class="card-body"><div class="text-xs font-weight-bold text-danger text-uppercase mb-1">สินค้าใกล้หมด</div><div class="h3 mb-0 fw-bold text-gray-800">{{ low_stock_count }} รายการ</div></div></div></div>
-        <div class="col-md-3"><div class="card bg-white border-start border-4 border-secondary shadow-sm h-100 py-2"><div class="card-body"><div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">สินค้าทั้งหมด</div><div class="h3 mb-0 fw-bold text-gray-800">{{ total_products }} รายการ</div></div></div></div>
-    </div>
-    {% endif %}
-
-    {% if show_hr %}
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm bg-primary text-white overflow-hidden">
-                <div class="card-body p-4 d-flex justify-content-between align-items-center position-relative">
-                    <div style="z-index: 1;">
-                        <h2 class="fw-bold mb-1">🏢 ระบบจัดการทรัพยากรบุคคล (HR)</h2>
-                        <div class="mt-2">
-                            {% if current_emp_id %}
-                                <a href="{% url 'employee_detail' current_emp_id %}" class="btn btn-warning btn-sm text-dark fw-bold rounded-pill shadow-sm btn-profile-link border-2 border-white">
-                                    <i class="fas fa-id-card me-1"></i> {{ role_name }} (ข้อมูลส่วนตัว)
-                                </a>
-                            {% else %}
-                                <span class="badge bg-warning text-dark">สถานะ: {{ role_name }}</span>
-                            {% endif %}
+                        <div class="d-flex justify-content-between small">
+                            <span class="text-muted">รออนุมัติลา:</span>
+                            <span class="fw-bold text-warning">{{ pending_leaves }} ใบ</span>
                         </div>
                     </div>
-                    <a href="/admin/" target="_blank" class="btn btn-light text-primary fw-bold px-4 py-2 rounded-pill shadow" style="z-index: 1;">
-                        <i class="fas fa-cogs me-1"></i> จัดการข้อมูล (Admin)
-                    </a>
-                    <i class="fas fa-users position-absolute text-white" style="font-size: 150px; opacity: 0.15; right: -20px; top: -30px;"></i>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-3 mb-4">
-        <div class="col-md-3"><div class="card bg-white border-start border-4 border-primary shadow-sm h-100 py-2"><div class="card-body"><div class="text-xs font-weight-bold text-primary text-uppercase mb-1">พนักงานทั้งหมด</div><div class="h3 mb-0 fw-bold text-gray-800">{{ total_employees }} คน</div></div></div></div>
-        <div class="col-md-3"><div class="card bg-white border-start border-4 border-success shadow-sm h-100 py-2"><div class="card-body"><div class="text-xs font-weight-bold text-success text-uppercase mb-1">งบเงินเดือน</div><div class="h3 mb-0 fw-bold text-gray-800">฿{{ total_salary }}</div></div></div></div>
-        <div class="col-md-3"><div class="card bg-white border-start border-4 border-warning shadow-sm h-100 py-2"><div class="card-body"><div class="text-xs font-weight-bold text-warning text-uppercase mb-1">รออนุมัติลา</div><div class="h3 mb-0 fw-bold text-gray-800">{{ pending_leaves }} รายการ</div>{% if pending_leaves > 0 %}<a href="{% url 'leave_approval' %}" class="stretched-link"></a>{% endif %}</div></div></div>
-        <div class="col-md-3"><div class="card bg-white border-start border-4 border-danger shadow-sm h-100 py-2"><div class="card-body"><div class="text-xs font-weight-bold text-danger text-uppercase mb-1">ขาด/ลายังไม่มา</div><div class="h3 mb-0 fw-bold text-gray-800">{{ absent_today }} คน</div></div></div></div>
-    </div>
-    {% endif %}
-
-    <div class="row">
-        <div class="col-lg-8 mb-4">
-            {% if show_hr %}
-            <div class="card shadow mb-4">
-                <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">📊 สถิติการมาทำงาน (7 วันล่าสุด)</h6></div>
-                <div class="card-body"><div class="chart-bar" style="height: 300px;"><canvas id="myBarChart"></canvas></div></div>
-            </div>
-            <div class="card shadow mb-4">
-                <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-info">🏢 งบแยกแผนก</h6></div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="table-light"><tr><th class="ps-4">แผนก</th><th class="text-center">จำนวนคน</th><th class="text-end pe-4">รวมเงินเดือน</th></tr></thead>
-                            <tbody>
-                                {% for dept in dept_summary %}
-                                <tr>
-                                    <td class="ps-4"><a href="{% url 'department_detail' dept.department %}" class="fw-bold text-primary">{{ dept.department }}</a></td>
-                                    <td class="text-center"><span class="badge bg-light text-dark border px-3">{{ dept.count }}</span></td>
-                                    <td class="text-end pe-4 fw-bold text-success">฿{{ dept.total_salary|intcomma }}</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-
-           {% if request.user.is_superuser or request.user.username == 'jcneed1975' or view_mode == 'Warehouse' or view_mode == 'Purchasing' %}
-            <div class="row mb-4">
-                <div class="row">
-
-                    {% if view_mode == 'all' or view_mode == 'Warehouse' %}
-                    <div class="col-md-6 mb-4">
-                        <div class="card border-0 shadow-sm bg-success text-white h-100 overflow-hidden" style="background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%);">
-                            <div class="card-body p-4 position-relative">
-                                <h4 class="fw-bold mb-1"><i class="fas fa-warehouse me-2"></i>ระบบคลังสินค้า</h4>
-                                <p class="mb-4 opacity-75">จัดการสต็อกสินค้าและวัตถุดิบ</p>
-                                <div class="d-grid gap-2" style="z-index: 2; position: relative;">
-                                    <a href="{% url 'inventory_dashboard' %}?type=FG" class="btn btn-light text-success fw-bold text-start shadow-sm">
-                                        <i class="fas fa-box-open me-2"></i> คลังสินค้าพร้อมขาย (FG)
-                                    </a>
-                                    <a href="{% url 'inventory_dashboard' %}?type=RM" class="btn btn-warning text-dark fw-bold text-start shadow-sm">
-                                        <i class="fas fa-layer-group me-2"></i> คลังวัตถุดิบ (Raw Material)
-                                    </a>
-                                </div>
-                                <i class="fas fa-dolly position-absolute text-white" style="font-size: 120px; opacity: 0.15; right: -10px; bottom: -20px;"></i>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    {% if view_mode == 'all' or view_mode == 'Purchasing' %}
-                    <div class="col-md-6 mb-4">
-                        <div class="card border-0 shadow-sm bg-primary text-white h-100 overflow-hidden" style="background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);">
-                            <div class="card-body p-4 position-relative">
-                                <h4 class="fw-bold mb-1"><i class="fas fa-shopping-cart me-2"></i>แผนกจัดซื้อ</h4>
-                                <p class="mb-4 opacity-75">ออกใบสั่งซื้อและจัดการคู่ค้า</p>
-
-                                <div class="d-grid gap-2" style="z-index: 2; position: relative;">
-                                    <a href="{% url 'purchasing_dashboard' %}" class="btn btn-light text-primary fw-bold text-start shadow-sm position-relative overflow-hidden">
-                                        <i class="fas fa-chart-line me-2"></i> แดชบอร์ดจัดซื้อ (Dashboard)
-                                        <span class="position-absolute top-0 start-100 translate-middle p-2 bg-danger border border-light rounded-circle">
-                                            <span class="visually-hidden">New alerts</span>
-                                        </span>
-                                    </a>
-                                    <a href="{% url 'supplier_list' %}" class="btn btn-info text-white fw-bold text-start shadow-sm">
-                                        <i class="fas fa-truck me-2"></i> รายชื่อคู่ค้า (Suppliers)
-                                    </a>
-                                </div>
-                                <i class="fas fa-handshake position-absolute text-white" style="font-size: 120px; opacity: 0.15; right: -10px; bottom: -20px;"></i>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                </div>
-            </div>
-            {% endif %}
-
-            {% if show_sales %}
-            <div class="card shadow">
-                <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-success">📈 แนวโน้มยอดขาย</h6></div>
-                <div class="card-body"><div style="height: 300px;"><canvas id="salesChart"></canvas></div></div>
-            </div>
-            {% endif %}
+            </a>
         </div>
 
-        <div class="col-lg-4 mb-4">
-            {% if show_hr %}
-            <div class="card shadow mb-4">
-                <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">⏰ สัดส่วนเวลาเข้างาน</h6></div>
-                <div class="card-body">
-                    <div class="chart-pie pt-4 pb-2" style="height: 250px;"><canvas id="myPieChart"></canvas></div>
-                    <div class="mt-4 text-center small"><span class="me-2"><i class="fas fa-circle text-success"></i> ปกติ</span><span class="me-2"><i class="fas fa-circle text-warning"></i> สาย</span><span class="me-2"><i class="fas fa-circle text-danger"></i> ขาด</span></div>
-                </div>
-            </div>
-            {% endif %}
+        <div class="col-md-3">
+            <a href="{% url 'sales_dashboard' %}" class="card border-0 shadow-sm text-decoration-none hover-card h-100 border-bottom border-4 border-primary">
+                <div class="card-body text-center p-4">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex p-4 mb-3">
+                        <i class="fas fa-chart-line fa-3x"></i>
+                    </div>
+                    <h4 class="fw-bold text-dark">ฝ่ายขาย (Sales)</h4>
+                    <p class="text-muted small mb-3">POS, ยอดขาย, รายงาน</p>
 
-            {% if show_sales %}
-            <div class="card bg-gradient-success text-white shadow mb-4" style="background: linear-gradient(45deg, #1cc88a, #13855c);">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div><h6 class="opacity-75">ยอดขายรวม (ช่วงเวลา)</h6><h1 class="fw-bold mb-0">฿{{ period_sales_amount }}</h1></div>
-                    <i class="fas fa-coins fa-3x opacity-50"></i>
-                </div>
-            </div>
-            <div class="card shadow mb-4">
-                <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-info">🏆 สินค้าขายดี Top 5</h6></div>
-                <div class="card-body"><div style="height: 300px;"><canvas id="prodChart"></canvas></div></div>
-            </div>
-            {% endif %}
-
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 d-flex justify-content-between align-items-center"><h6 class="m-0 font-weight-bold text-secondary">🔔 กิจกรรมล่าสุด</h6><span class="badge bg-secondary rounded-pill">วันนี้</span></div>
-                <div class="card-body p-0">
-                    <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
-                        {% for act in activities %}
-                        <div class="list-group-item px-3 py-3 border-bottom">
-                            <div class="d-flex w-100">
-                                <div class="me-3"><div class="rounded-circle {{ act.bg }} d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;"><i class="fas {{ act.icon }} {{ act.color }}"></i></div></div>
-                                <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between align-items-start"><h6 class="mb-0 text-dark" style="font-size: 0.9rem;">{{ act.title }}</h6><small class="text-primary fw-bold ms-2">{{ act.time_show }}</small></div>
-                                    <small class="text-muted d-block mt-1">{{ act.detail }}</small>
-                                </div>
-                            </div>
+                    <div class="bg-light rounded p-2 text-start">
+                        <div class="d-flex justify-content-between small">
+                            <span class="text-muted">ยอดขายวันนี้:</span>
+                            <span class="fw-bold text-primary">฿{{ total_sales_today|intcomma }}</span>
                         </div>
-                        {% empty %}
-                        <div class="text-center py-5 text-muted opacity-50"><i class="fas fa-history fa-2x mb-2"></i><br>ไม่มีกิจกรรมวันนี้</div>
-                        {% endfor %}
                     </div>
                 </div>
-            </div>
+            </a>
         </div>
+
+        <div class="col-md-3">
+            <a href="{% url 'production_dept_dashboard' %}" class="card border-0 shadow-sm text-decoration-none hover-card h-100 border-bottom border-4 border-dark">
+                <div class="card-body text-center p-4">
+                    <div class="bg-dark bg-opacity-10 text-dark rounded-circle d-inline-flex p-4 mb-3">
+                        <i class="fas fa-industry fa-3x"></i>
+                    </div>
+                    <h4 class="fw-bold text-dark">ฝ่ายผลิต (Production)</h4>
+                    <p class="text-muted small mb-3">สั่งผลิต (MES), ควบคุม Job</p>
+                    
+                    <div class="bg-light rounded p-2 text-center small text-muted">
+                        คลิกเพื่อดูสถานะการผลิต
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-3">
+            <a href="{% url 'inventory_dashboard' %}" class="card border-0 shadow-sm text-decoration-none hover-card h-100 border-bottom border-4 border-warning">
+                <div class="card-body text-center p-4">
+                    <div class="bg-warning bg-opacity-10 text-warning rounded-circle d-inline-flex p-4 mb-3">
+                        <i class="fas fa-warehouse fa-3x"></i>
+                    </div>
+                    <h4 class="fw-bold text-dark">คลังสินค้า</h4>
+                    <p class="text-muted small mb-3">สต็อกสินค้า, วัตถุดิบ</p>
+
+                    <div class="bg-light rounded p-2 text-start">
+                        <div class="d-flex justify-content-between small">
+                            <span class="text-muted">ของใกล้หมด:</span>
+                            <span class="fw-bold text-danger">{{ low_stock_count }} รายการ</span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-3">
+            <a href="{% url 'purchasing_dashboard' %}" class="card border-0 shadow-sm text-decoration-none hover-card h-100 border-bottom border-4 border-info">
+                <div class="card-body text-center p-4">
+                    <div class="bg-info bg-opacity-10 text-info rounded-circle d-inline-flex p-4 mb-3">
+                        <i class="fas fa-shopping-cart fa-3x"></i>
+                    </div>
+                    <h4 class="fw-bold text-dark">ฝ่ายจัดซื้อ (Purchasing)</h4>
+                    <p class="text-muted small mb-3">ใบสั่งซื้อ (PO), ซัพพลายเออร์</p>
+
+                    <div class="bg-light rounded p-2 text-start">
+                        <div class="d-flex justify-content-between small">
+                            <span class="text-muted">รอสั่งซื้อ:</span>
+                            <span class="fw-bold text-info">{{ pending_pos }} ใบ</span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://npmcdn.com/flatpickr/dist/l10n/th.js"></script>
-
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        document.querySelectorAll(".datepicker").forEach(function(input) {
-            flatpickr(input, { dateFormat: "Y-m-d", altInput: true, altFormat: "d/m/Y", locale: "th", defaultDate: input.getAttribute("value") });
-        });
-    });
-
-    {% if show_hr %}
-    new Chart(document.getElementById("myBarChart"), { type: 'bar', data: { labels: JSON.parse('{{ bar_labels|safe }}'), datasets: [{ label: "คนมาทำงาน", backgroundColor: "#4e73df", hoverBackgroundColor: "#2e59d9", data: JSON.parse('{{ bar_data|safe }}') }] }, options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
-    new Chart(document.getElementById("myPieChart"), { type: 'doughnut', data: { labels: ["ปกติ", "สาย", "ขาด"], datasets: [{ data: JSON.parse('{{ pie_data|safe }}'), backgroundColor: ['#1cc88a', '#f6c23e', '#e74a3b'] }] }, options: { maintainAspectRatio: false, cutout: '70%', plugins: { legend: { display: false } } } });
-    {% endif %}
-
-    {% if show_sales %}
-    new Chart(document.getElementById("salesChart"), { type: 'line', data: { labels: JSON.parse('{{ sales_labels|safe }}'), datasets: [{ label: "ยอดขาย (บาท)", borderColor: "#1cc88a", backgroundColor: "rgba(28, 200, 138, 0.1)", fill: true, data: JSON.parse('{{ sales_chart_data|safe }}') }] }, options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
-    new Chart(document.getElementById("prodChart"), { type: 'doughnut', data: { labels: JSON.parse('{{ top_prod_labels|safe }}'), datasets: [{ data: JSON.parse('{{ top_prod_data|safe }}'), backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'] }] }, options: { maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom' } } } });
-    {% endif %}
-</script>
+<style>
+    .hover-card { transition: transform 0.2s, box-shadow 0.2s; }
+    .hover-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
+</style>
 {% endblock %}

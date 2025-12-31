@@ -53,12 +53,21 @@ urlpatterns = [
     # ==========================================
     # 👉 ทางเข้า Dashboard จัดซื้อ (ที่เพิ่มใหม่)
     path('purchasing/dashboard/', views.purchasing_dashboard, name='purchasing_dashboard'),
-    
+
     # ทางเข้าจัดการ PO (เดิม)
     path('purchase/', views.po_list, name='po_list'),
     path('purchase/new/', views.po_create, name='po_create'),
     path('purchase/<int:po_id>/', views.po_detail, name='po_detail'),
     path('purchase/<int:po_id>/receive/', views.po_receive, name='po_receive'),
+    path('manufacturing/', views.manufacturing_dashboard, name='manufacturing_dashboard'),
+    path('manufacturing/create/', views.mo_create, name='mo_create'),
+    path('manufacturing/complete/<int:mo_id>/', views.mo_complete, name='mo_complete'),
+    path('manufacturing/delete/<int:mo_id>/', views.mo_delete, name='mo_delete'),
+    path('manufacturing/create-product/<str:p_type>/', views.quick_create_product, name='quick_create_product'),
+    path('manufacturing/create-bom/', views.quick_create_bom, name='quick_create_bom'),
+    path('dashboard/production/', views.production_dept_dashboard, name='production_dept_dashboard'),
+    path('dashboard/hr/', views.hr_dashboard, name='hr_dashboard'),
+    path('dashboard/sales/', views.sales_dashboard, name='sales_dashboard'),
 
     # 13. ออกจากระบบ
     path('logout/', views.logout_view, name='logout'),

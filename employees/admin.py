@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from django.utils.html import format_html # เครื่องมือสร้างรูปภาพ
-from .models import Employee, Attendance, LeaveRequest, Product, Order, OrderItem, Category # ✅ เพิ่ม Category เข้ามา
+from .models import Employee, Attendance, LeaveRequest, Product, Order, OrderItem, Category, BOMItem, ProductionOrder
 from import_export.admin import ImportExportModelAdmin
 
 # ==========================================
@@ -56,10 +56,8 @@ class LeaveRequestAdmin(ImportExportModelAdmin):
     list_filter = ('status', 'leave_type')
 
 # ==========================================
-# 4. 🛒 ระบบ POS (อัปเกรดใหม่ล่าสุด!) 🚀
+# 4. ✅ ส่วนจัดการหมวดหมู่ (สร้างเมนูใหม่ให้เลย)
 # ==========================================
-
-# ✅ ส่วนจัดการหมวดหมู่ (สร้างเมนูใหม่ให้เลย)
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ('name',)
@@ -74,8 +72,8 @@ class ProductAdmin(admin.ModelAdmin):
     list_editable = ('price', 'stock', 'is_active', 'category')
 
     # ค้นหาได้ทั้งชื่อสินค้า และ ชื่อหมวดหมู่
-    search_fields = ('name', 'category__name') 
-    
+    search_fields = ('name', 'category__name')
+
     # ตัวกรองด้านขวา
     list_filter = ('category', 'is_active')
 
@@ -100,3 +98,30 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = ('id', 'employee', 'total_amount', 'order_date')
     inlines = [OrderItemInline]
     readonly_fields = ('order_date',)
+
+# ==========================================
+# 5. 🏭 ส่วนจัดการโรงงาน (Manufacturing Admin)
+# ==========================================
+
+class BOMItemInline(admin.TabularInline):
+    model = BOMItem
+    fk_name = 'finished_good'
+    extra = 1
+    verbose_name = "วัตถุดิบที่ต้องใช้"
+    verbose_name_plural = "สูตรการผลิต (Recipe)"
+
+@admin.register(BOMItem)
+class BOMItemAdmin(admin.ModelAdmin):
+    list_display = ('finished_good', 'raw_material', 'quantity')
+    list_filter = ('finished_good',)
+    search_fields = ('finished_good__name', 'raw_material__name')
+
+@admin.register(ProductionOrder)
+class ProductionOrderAdmin(admin.ModelAdmin):
+    list_display = ('id', 'product', 'quantity', 'status', 'created_by', 'created_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('product__name', 'note')
+    date_hierarchy = 'created_at'
+
+    # ทำให้เปลี่ยนสถานะได้จากหน้า List เลย (สะดวกมาก!)
+    list_editable = ('status',)

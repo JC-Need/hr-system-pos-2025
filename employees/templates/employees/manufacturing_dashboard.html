@@ -1,0 +1,578 @@
+{% extends 'employees/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid mt-4 pb-5">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-1"><i class="fas fa-industry me-2"></i> ระบบควบคุมการผลิต</h3>
+            <p class="text-muted small">Manufacturing Execution System (MES)</p>
+        </div>
+        
+        <div class="d-flex gap-2">
+            <button class="btn btn-warning shadow-sm fw-bold rounded-pill text-dark" data-bs-toggle="modal" data-bs-target="#modalCreateRM">
+                <i class="fas fa-cubes me-1"></i> สร้างวัตถุดิบ (RM)
+            </button>
+            <button class="btn btn-success shadow-sm fw-bold rounded-pill" data-bs-toggle="modal" data-bs-target="#modalCreateFG">
+                <i class="fas fa-box me-1"></i> สร้างสินค้า (FG)
+            </button>
+            <button class="btn btn-primary shadow-sm fw-bold rounded-pill" data-bs-toggle="modal" data-bs-target="#modalCreateBOM">
+                <i class="fas fa-flask me-1"></i> ผูกสูตร (BOM)
+            </button>
+            <button class="btn btn-info shadow-sm fw-bold rounded-pill text-white" data-bs-toggle="modal" data-bs-target="#modalRecipeBook">
+                <i class="fas fa-clipboard-list me-1"></i> BOM สินค้า
+            </button>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm border-start border-4 border-warning h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted text-uppercase small mb-1">รอการผลิต (Pending)</p>
+                            <h2 class="fw-bold text-warning mb-0">{{ pending_orders }} <span class="fs-6 text-muted fw-normal">ใบ</span></h2>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-clock text-warning fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm border-start border-4 border-primary h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted text-uppercase small mb-1">กำลังผลิต (In Progress)</p>
+                            <h2 class="fw-bold text-primary mb-0">{{ in_progress_orders }} <span class="fs-6 text-muted fw-normal">ใบ</span></h2>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-cogs text-primary fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm border-start border-4 border-success h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted text-uppercase small mb-1">ผลิตเสร็จวันนี้ (Completed)</p>
+                            <h2 class="fw-bold text-success mb-0">{{ completed_today }} <span class="fs-6 text-muted fw-normal">ใบ</span></h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 rounded-circle p-3">
+                            <i class="fas fa-check-circle text-success fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow border-0">
+                <div class="card-header bg-white py-3 border-bottom-0">
+                    <h5 class="m-0 fw-bold text-secondary"><i class="fas fa-clipboard-list me-2"></i>รายการใบสั่งผลิต (Production Orders)</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-secondary small text-uppercase">
+                            <tr>
+                                <th class="ps-4">JOB NO.</th> <th>สินค้า (FG)</th>
+                                <th class="text-center">จำนวน</th>
+                                <th class="text-center">สถานะ</th>
+                                <th>ผู้สั่ง</th>
+                                <th class="text-end pe-4">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mo in orders %}
+                            <tr>
+                                <td class="ps-4">
+                                    <span class="badge bg-dark font-monospace">{{ mo.job_number|default:"-" }}</span>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ mo.product.name }}</div>
+                                    <small class="text-muted">{{ mo.created_at|date:"d/m/Y H:i" }}</small>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border px-3 py-2 fs-6">{{ mo.quantity }}</span>
+                                </td>
+                                <td class="text-center">
+                                    {% if mo.status == 'PENDING' %}
+                                        <span class="badge bg-warning text-dark">รอผลิต ⏳</span>
+                                    {% elif mo.status == 'IN_PROGRESS' %}
+                                        <span class="badge bg-primary">กำลังผลิต ⚙️</span>
+                                    {% elif mo.status == 'COMPLETED' %}
+                                        <span class="badge bg-success">เสร็จสิ้น ✅</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">ยกเลิก</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light rounded-circle text-center me-2" style="width: 30px; height: 30px; line-height: 30px;">
+                                            <i class="fas fa-user small text-muted"></i>
+                                        </div>
+                                        <small>{{ mo.created_by.first_name|default:"Admin" }}</small>
+                                    </div>
+                                </td>
+                                <td class="text-end pe-4">
+                                    {% if mo.status != 'COMPLETED' %}
+                                        <a href="{% url 'mo_complete' mo.id %}" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm" onclick="return confirm('⚠️ ยืนยันการจบงาน?\n\nระบบจะตัดวัตถุดิบและเพิ่มสินค้าเข้าสต็อกทันที!');">
+                                            <i class="fas fa-check me-1"></i> จบงาน
+                                        </a>
+                                        <a href="{% url 'mo_delete' mo.id %}" class="btn btn-outline-danger btn-sm rounded-circle ms-1" onclick="return confirm('ต้องการลบใบงานนี้ใช่ไหม?');">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted small"><i class="fas fa-lock me-1"></i> ปิดงานแล้ว</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted opacity-50">
+                                    <i class="fas fa-industry fa-3x mb-3"></i><br>
+                                    ยังไม่มีใบสั่งผลิต
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 bg-dark text-white sticky-top" style="top: 20px;">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-4"><i class="fas fa-plus-circle me-2"></i> เปิดใบสั่งผลิตใหม่</h5>
+                    
+                    <form action="{% url 'mo_create' %}" method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label small text-white-50">หมวดหมู่สินค้า</label>
+                            <select id="catSelect" class="form-select" onchange="filterProductOptions()">
+                                <option value="all">-- ทุกหมวดหมู่ --</option>
+                                {% for cat in all_categories %}
+                                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small text-white-50">สินค้าที่จะผลิต (FG)</label>
+                            <select name="product_id" id="prodSelect" class="form-select form-select-lg fw-bold" required>
+                                <option value="" selected disabled>-- กรุณาเลือกสินค้า --</option>
+                                {% for p in producible_products %}
+                                    <option value="{{ p.id }}" data-category="{{ p.category.id }}">
+                                        {{ p.name }} (คงเหลือ: {{ p.stock }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            {% if not producible_products %}
+                                <div class="mt-2 small">
+                                    <a href="#" data-bs-toggle="modal" data-bs-target="#modalCreateBOM" class="text-warning text-decoration-none">
+                                        <i class="fas fa-exclamation-triangle me-1"></i> ยังไม่มีสินค้าที่มีสูตร (BOM)
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label small text-white-50">จำนวนที่ต้องการผลิต</label>
+                            <div class="input-group">
+                                <input type="number" name="quantity" class="form-control form-control-lg text-center fw-bold" value="1" min="1" required>
+                                <span class="input-group-text">ชิ้น/ชุด</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 btn-lg fw-bold shadow hover-scale">
+                            <i class="fas fa-file-signature me-2"></i> เปิด JOB สั่งผลิต
+                        </button>
+                    </form>
+
+                    <script>
+                        function filterProductOptions() {
+                            const catId = document.getElementById('catSelect').value;
+                            const prodSelect = document.getElementById('prodSelect');
+                            const options = prodSelect.querySelectorAll('option');
+
+                            // รีเซ็ตค่าที่เลือก
+                            prodSelect.value = "";
+
+                            options.forEach(option => {
+                                // ข้ามตัวเลือกแรก (Disabled)
+                                if (option.disabled) return;
+
+                                const prodCat = option.getAttribute('data-category');
+                                
+                                // ถ้าเลือก All หรือ หมวดหมู่ตรงกัน -> แสดง
+                                if (catId === 'all' || prodCat === catId) {
+                                    option.style.display = 'block';
+                                } else {
+                                    option.style.display = 'none';
+                                }
+                            });
+                        }
+                    </script>
+
+                    <hr class="border-secondary my-4">
+                    
+                    <div class="small text-white-50">
+                        <i class="fas fa-info-circle me-1"></i> <strong>หมายเหตุ:</strong><br>
+                        เมื่อกด "จบงาน" ระบบจะตัดวัตถุดิบ (RM) ตามสูตร BOM และเพิ่มสินค้า (FG) เข้าสต็อกโดยอัตโนมัติ
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalCreateRM" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold"><i class="fas fa-cubes me-2"></i>สร้างวัตถุดิบใหม่ (RM)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{% url 'quick_create_product' 'RM' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>ชื่อวัตถุดิบ</label>
+                        <input type="text" name="name" class="form-control" required placeholder="เช่น เมล็ดกาแฟ, น็อต, ไม้แผ่น">
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label>ต้นทุน (บาท)</label>
+                            <input type="number" name="price" class="form-control" step="0.01" value="0">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label>สต็อกตั้งต้น</label>
+                            <input type="number" name="stock" class="form-control" value="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-warning fw-bold w-100">บันทึกวัตถุดิบ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalCreateFG" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-box me-2"></i>สร้างสินค้าใหม่ (FG)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{% url 'quick_create_product' 'FG' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>ชื่อสินค้า</label>
+                        <input type="text" name="name" class="form-control" required placeholder="เช่น กาแฟลาเต้, เก้าอี้ไม้">
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label>ราคาขาย (บาท)</label>
+                            <input type="number" name="price" class="form-control" step="0.01" value="0">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label>สต็อกตั้งต้น</label>
+                            <input type="number" name="stock" class="form-control" value="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success fw-bold w-100">บันทึกสินค้า</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalCreateBOM" tabindex="-1">
+    <div class="modal-dialog modal-lg"> <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-scroll me-2"></i>สร้างสูตรการผลิต (Recipe Builder)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <form action="{% url 'quick_create_bom' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="bg-light p-3 rounded mb-4 border">
+                        <label class="fw-bold text-primary mb-2">1. เลือกสินค้าที่จะผลิต (Finished Good)</label>
+                        <select name="finished_good" class="form-select form-select-lg fw-bold" required>
+                            <option value="" selected disabled>-- เลือกสินค้า (FG) --</option>
+                            {% for fg in all_fgs %}
+                                <option value="{{ fg.id }}">{{ fg.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="fw-bold text-dark">2. ส่วนผสมวัตถุดิบ (Ingredients)</label>
+                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill fw-bold" onclick="addIngredientRow()">
+                            <i class="fas fa-plus-circle me-1"></i> เพิ่มวัตถุดิบ
+                        </button>
+                    </div>
+
+                    <div class="table-responsive border rounded">
+                        <table class="table table-borderless align-middle mb-0" id="bomTable">
+                            <thead class="bg-light text-secondary small border-bottom">
+                                <tr class="fw-bold">
+                                    <th style="width: 55%;" class="ps-3">วัตถุดิบ (Raw Material)</th>
+                                    <th style="width: 30%;">ปริมาณที่ใช้</th>
+                                    <th style="width: 15%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bomContainer">
+                                <tr class="bom-row border-bottom">
+                                    <td class="ps-3">
+                                        <select name="raw_material[]" class="form-select" required>
+                                            <option value="" selected disabled>-- เลือกวัตถุดิบ --</option>
+                                            {% for rm in all_rms %}
+                                                <option value="{{ rm.id }}">{{ rm.name }} (Stock: {{ rm.stock }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" name="quantity[]" class="form-control" placeholder="0.0" step="0.01" min="0.01" required>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-outline-danger btn-sm border-0 remove-row" style="visibility: hidden;">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="form-text mt-2"><i class="fas fa-info-circle me-1"></i> กดปุ่ม "เพิ่มวัตถุดิบ" เพื่อใส่ส่วนผสมได้หลายรายการ</div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4 shadow-sm">
+                        <i class="fas fa-save me-2"></i> บันทึกสูตรทั้งหมด
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function addIngredientRow() {
+        // 1. หา Container และแถวต้นแบบ
+        const container = document.getElementById('bomContainer');
+        const firstRow = container.querySelector('.bom-row');
+        
+        // 2. คัดลอกแถว (Clone)
+        const newRow = firstRow.cloneNode(true);
+        
+        // 3. เคลียร์ค่าใน Input ของแถวใหม่
+        const select = newRow.querySelector('select');
+        const input = newRow.querySelector('input');
+        
+        select.value = "";
+        input.value = "";
+        
+        // 4. โชว์ปุ่มลบ (X) ให้แถวใหม่
+        const removeBtn = newRow.querySelector('.remove-row');
+        removeBtn.style.visibility = "visible";
+        removeBtn.onclick = function() {
+            newRow.remove();
+        };
+        
+        // 5. เพิ่มลงในตาราง
+        container.appendChild(newRow);
+    }
+</script>
+
+<div class="modal fade" id="modalRecipeBook" tabindex="-1">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title fw-bold"><i class="fas fa-boxes me-2"></i>รายการ BOM สินค้า (Bill of Materials)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            
+            <div class="modal-body bg-light">
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body bg-white rounded">
+                        <label class="small text-muted mb-2 fw-bold text-uppercase">กรองข้อมูลสินค้า</label>
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-tags text-muted"></i></span>
+                                    <select id="filterCategory" class="form-select border-start-0 bg-light" onchange="filterProducts()">
+                                        <option value="all" selected>-- ทุกหมวดหมู่ --</option>
+                                        </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-5">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-box text-muted"></i></span>
+                                    <select id="filterProduct" class="form-select border-start-0" disabled>
+                                        <option value="" selected disabled>-- กรุณาเลือกหมวดหมู่ก่อน --</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-info text-white w-100 fw-bold shadow-sm" onclick="showBomResult()">
+                                    <i class="fas fa-search"></i> ดูสูตร
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="bomResultsArea">
+                    <div id="initialState" class="text-center py-5 text-muted opacity-50">
+                        <i class="fas fa-search fa-3x mb-3"></i><br>
+                        กรุณาเลือกสินค้าและกด "ดูสูตร"
+                    </div>
+
+                    {% for fg in all_fgs %}
+                        {% if fg.bom_items.exists %}
+                        <div class="card mb-3 shadow-sm border-0 bom-card d-none" 
+                             id="bom-card-{{ fg.id }}" 
+                             data-category="{{ fg.category.name|default:'ทั่วไป' }}" 
+                             data-name="{{ fg.name }}"
+                             data-id="{{ fg.id }}">
+                            
+                            <div class="card-header bg-white fw-bold text-primary d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-box me-2"></i>
+                                    <span class="fs-5 text-dark">{{ fg.name }}</span>
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary ms-2">{{ fg.category.name|default:'ทั่วไป' }}</span>
+                                </div>
+                                <span class="badge bg-light text-dark border">ID: {{ fg.id }}</span>
+                            </div>
+                            <div class="card-body p-0">
+                                <table class="table table-sm table-striped mb-0">
+                                    <thead class="text-muted small bg-light">
+                                        <tr>
+                                            <th class="ps-4 py-2">วัตถุดิบ (Ingredient)</th>
+                                            <th class="text-end pe-4 py-2">ปริมาณต่อ 1 ชิ้น</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in fg.bom_items.all %}
+                                        <tr>
+                                            <td class="ps-4">{{ item.raw_material.name }}</td>
+                                            <td class="text-end pe-4 fw-bold">{{ item.quantity }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. เตรียมข้อมูลเมื่อเปิดหน้าเว็บ
+    document.addEventListener('DOMContentLoaded', function() {
+        const allCards = document.querySelectorAll('.bom-card');
+        const categorySet = new Set();
+        
+        // ดึงหมวดหมู่ทั้งหมดจาก BOM ที่มีอยู่จริง
+        allCards.forEach(card => {
+            const cat = card.getAttribute('data-category');
+            if(cat) categorySet.add(cat);
+        });
+
+        // เติมตัวเลือกใน Dropdown หมวดหมู่
+        const catSelect = document.getElementById('filterCategory');
+        categorySet.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.text = cat;
+            catSelect.appendChild(option);
+        });
+        
+        // สั่งให้โหลดรายการสินค้าทั้งหมดลง Dropdown สินค้า (สถานะเริ่มต้น)
+        filterProducts();
+    });
+
+    // 2. ฟังก์ชันกรองสินค้าตามหมวดหมู่ (ทำงานเมื่อเปลี่ยน Category)
+    function filterProducts() {
+        const selectedCat = document.getElementById('filterCategory').value;
+        const productSelect = document.getElementById('filterProduct');
+        const allCards = document.querySelectorAll('.bom-card');
+
+        // เคลียร์ตัวเลือกเก่า
+        productSelect.innerHTML = '<option value="" selected disabled>-- เลือกสินค้า --</option>';
+        productSelect.disabled = false;
+
+        allCards.forEach(card => {
+            const cardCat = card.getAttribute('data-category');
+            const cardName = card.getAttribute('data-name');
+            const cardId = card.getAttribute('data-id');
+
+            // ถ้าเลือก "ทั้งหมด" หรือ "หมวดหมู่ตรงกัน" ให้เพิ่มสินค้านั้นลงใน Dropdown
+            if (selectedCat === 'all' || cardCat === selectedCat) {
+                const option = document.createElement('option');
+                option.value = cardId;
+                option.text = cardName;
+                productSelect.appendChild(option);
+            }
+        });
+    }
+
+    // 3. ฟังก์ชันแสดงผลลัพธ์ (ทำงานเมื่อกดปุ่มค้นหา)
+    function showBomResult() {
+        const selectedId = document.getElementById('filterProduct').value;
+        const initialState = document.getElementById('initialState');
+        const allCards = document.querySelectorAll('.bom-card');
+
+        if (!selectedId) {
+            alert("กรุณาเลือกสินค้าก่อนครับ");
+            return;
+        }
+
+        // ซ่อนข้อความเริ่มต้น
+        initialState.classList.add('d-none');
+
+        // ซ่อนการ์ดทั้งหมดก่อน
+        allCards.forEach(card => card.classList.add('d-none'));
+
+        // โชว์เฉพาะการ์ดที่เลือก
+        const targetCard = document.getElementById('bom-card-' + selectedId);
+        if (targetCard) {
+            targetCard.classList.remove('d-none');
+        }
+    }
+</script>
+
+<style>
+    .hover-scale:hover { transform: scale(1.02); transition: 0.2s; }
+</style>
+{% endblock %}

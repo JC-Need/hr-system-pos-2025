@@ -1,5 +1,5 @@
 from django import forms
-from .models import LeaveRequest, Product, Supplier, PurchaseOrder, PurchaseOrderItem
+from .models import Employee, Attendance, LeaveRequest, Product, Supplier, PurchaseOrder, PurchaseOrderItem, BOMItem
 
 # ==========================================
 # 🏖️ ฟอร์มใบลา (Leave Form) - ของเดิม
@@ -103,3 +103,13 @@ class PurchaseItemForm(forms.ModelForm):
             'unit_price': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
         }
 
+# --- ฟอร์มสำหรับระบบผลิต ---
+class BOMForm(forms.ModelForm):
+    class Meta:
+        model = BOMItem
+        fields = ['finished_good', 'raw_material', 'quantity']
+        widgets = {
+            'finished_good': forms.Select(attrs={'class': 'form-select'}),
+            'raw_material': forms.Select(attrs={'class': 'form-select'}),
+            'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '0.1', 'step': '0.1'}),
+        }
