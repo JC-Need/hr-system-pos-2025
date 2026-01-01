@@ -8,15 +8,21 @@ from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.models import User
-
-# ✅ Import Models & Forms
-from .models import Employee, Attendance, LeaveRequest, Product, Order, OrderItem, Category, Supplier, StockTransaction, PurchaseOrder, PurchaseOrderItem, BOMItem, ProductionOrder
-from .forms import LeaveRequestForm, ProductForm, SupplierForm, PurchaseOrderForm, BOMForm
-
+from decimal import Decimal
 import datetime
 from datetime import timedelta
 import json
 import requests
+
+# ✅ Import Models & Forms
+from .models import (
+    Employee, Attendance, LeaveRequest, Product, Order, OrderItem, 
+    Category, Supplier, StockTransaction, PurchaseOrder, PurchaseOrderItem, 
+    BOMItem, ProductionOrder
+)
+from .forms import (
+    LeaveRequestForm, ProductForm, SupplierForm, PurchaseOrderForm, BOMForm
+)
 
 # ==========================================
 # --- ฟังก์ชันช่วย (Helpers) ---
@@ -36,7 +42,7 @@ def is_admin(user):
 # ==========================================
 def send_line_alert(message, target_id=None):
     # ใส่ Token ของคุณที่นี่
-    LINE_TOKEN = 'YOUR_LINE_TOKEN_HERE'
+    LINE_TOKEN = 'YOUR_LINE_TOKEN_HERE' 
     BOSS_ID = 'YOUR_BOSS_LINE_ID'
 
     if target_id is None:
@@ -76,16 +82,11 @@ def home(request):
 # ==========================================
 @login_required
 def dashboard(request):
-    """
-    หน้าแรก (Landing Page):
-    - CEO: เห็นเมนูรวมทุกแผนก
-    - พนักงาน: เด้งไปหน้า Dashboard แผนกตัวเองทันที
-    """
     emp = get_employee_from_user(request.user)
     view_mode = request.GET.get('view', 'all')
 
-    # --- 1. ระบบ Auto-Redirect สำหรับพนักงาน (ไม่ใช่ CEO) ---
-    is_ceo = request.user.is_superuser or request.user.username == 'jcneed1975'
+    # --- 1. ระบบ Auto-Redirect สำหรับพนักงาน ---
+    is_ceo = request.user.is_superuser or (request.user.username == 'jcneed1975')
 
     if not is_ceo:
         if emp:
@@ -97,15 +98,11 @@ def dashboard(request):
             elif dept == 'Production': return redirect('production_dept_dashboard')
             elif dept == 'Marketing': return redirect('marketing_dashboard')
             elif dept == 'Accounting': return redirect('accounting_dashboard')
-
-            # ✅ เพิ่มบรรทัดนี้: ถ้าเป็นฝ่ายปฏิบัติการ ให้ไปหน้า Operations Dashboard
             elif dept == 'Operations': return redirect('operations_dashboard')
-
-            # แผนกอื่นๆ ไปหน้าประวัติ
             elif dept not in ['Management', 'CEO']:
                 return redirect('employee_detail', emp_id=emp.id)
 
-    # --- 2. ระบบ CEO กดเลือกแผนก (Manual Redirect) ---
+    # --- 2. ระบบ CEO กดเลือกแผนก ---
     if view_mode == 'Sales': return redirect('sales_dashboard')
     elif view_mode == 'Human Resources': return redirect('hr_dashboard')
     elif view_mode == 'Purchasing': return redirect('purchasing_dashboard')
@@ -115,7 +112,7 @@ def dashboard(request):
     elif view_mode == 'Accounting': return redirect('accounting_dashboard')
     elif view_mode == 'Operations': return redirect('operations_dashboard')
 
-    # --- 3. ข้อมูลสำหรับหน้าเมนูรวม (CEO Overview) ---
+    # --- 3. หน้าเมนูรวม (CEO Overview) ---
     today = timezone.localtime(timezone.now()).date()
     all_departments = Employee.objects.exclude(department__isnull=True).exclude(department__exact='').values_list('department', flat=True).distinct().order_by('department')
 
@@ -133,10 +130,9 @@ def dashboard(request):
 @login_required
 def sales_dashboard(request):
     today = timezone.localtime(timezone.now()).date()
-
-    # Filter Date
     sales_start = today
     sales_end = today
+    
     req_start = request.GET.get('sales_start')
     req_end = request.GET.get('sales_end')
     if req_start and req_end:
@@ -150,7 +146,7 @@ def sales_dashboard(request):
     period_orders = Order.objects.filter(order_date__date__range=[sales_start, sales_end]).count()
     period_items = OrderItem.objects.filter(order__order_date__date__range=[sales_start, sales_end]).aggregate(Sum('quantity'))['quantity__sum'] or 0
 
-    # กราฟยอดขาย (Line Chart)
+    # Graph
     sales_labels = []
     sales_data = []
     delta = (sales_end - sales_start).days
@@ -160,12 +156,9 @@ def sales_dashboard(request):
         val = Order.objects.filter(order_date__date=d).aggregate(Sum('total_amount'))['total_amount__sum'] or 0
         sales_data.append(float(val))
 
-    # สินค้าขายดี (Pie Chart)
     top_items = OrderItem.objects.filter(order__order_date__date__range=[sales_start, sales_end]).values('product__name').annotate(qty=Sum('quantity')).order_by('-qty')[:5]
     top_labels = [i['product__name'] for i in top_items]
     top_data = [i['qty'] for i in top_items]
-
-    # กิจกรรมล่าสุด
     recent_orders = Order.objects.filter(order_date__date=today).order_by('-order_date')[:10]
 
     context = {
@@ -189,19 +182,15 @@ def sales_dashboard(request):
 @login_required
 def hr_dashboard(request):
     today = timezone.localtime(timezone.now()).date()
-
-    # KPIs
     total_emps = Employee.objects.count()
     total_salary = Employee.objects.aggregate(Sum('base_allowance'))['base_allowance__sum'] or 0
     pending_leaves = LeaveRequest.objects.filter(status='PENDING').count()
 
-    # Attendance
     present = Attendance.objects.filter(date=today).count()
     absent = total_emps - present
     late_count = Attendance.objects.filter(date=today, time_in__gt=datetime.time(9,0)).count()
     on_time = present - late_count
 
-    # กราฟการมาทำงาน 7 วัน
     bar_labels = []
     bar_data = []
     for i in range(6, -1, -1):
@@ -209,7 +198,6 @@ def hr_dashboard(request):
         bar_labels.append(d.strftime('%d/%m'))
         bar_data.append(Attendance.objects.filter(date=d).count())
 
-    # กิจกรรมล่าสุด
     recent_atts = Attendance.objects.filter(date=today).order_by('-time_in')[:10]
 
     context = {
@@ -464,7 +452,6 @@ def pos_checkout(request):
 # ==========================================
 # 📦 9. Inventory Views (จัดการคลังสินค้า)
 # ==========================================
-
 @login_required
 def inventory_dashboard(request):
     view_type = request.GET.get('type', 'FG')
@@ -556,7 +543,6 @@ def supplier_create(request):
 # ==========================================
 # 🛒 10. ระบบจัดซื้อ & Dashboard
 # ==========================================
-
 @login_required
 def purchasing_dashboard(request):
     total_spend = PurchaseOrder.objects.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
@@ -646,7 +632,6 @@ def po_receive(request, po_id):
 # ==========================================
 # 🏭 11. ระบบผลิต (Manufacturing System)
 # ==========================================
-
 @login_required
 def manufacturing_dashboard(request):
     pending_orders = ProductionOrder.objects.filter(status='PENDING').count()
@@ -952,37 +937,31 @@ def accounting_dashboard(request):
 def operations_dashboard(request):
     today = timezone.localtime(timezone.now()).date()
 
-    # --- 1. Production Overview (ภาพรวมการผลิต) ---
+    # 1. Production Overview
     active_jobs = ProductionOrder.objects.filter(status__in=['PENDING', 'IN_PROGRESS']).count()
     completed_today = ProductionOrder.objects.filter(status='COMPLETED', updated_at__date=today).count()
-
-    # คำนวณ % ความสำเร็จ (สมมติเป้าหมาย 10 งานต่อวัน)
     daily_target = 10
     production_progress = min(int((completed_today / daily_target) * 100), 100)
 
-    # --- 2. Inventory Health (สุขภาพคลังสินค้า) ---
-    total_stock_value = Product.objects.aggregate(Sum('stock')) # แก้ขัด: ใช้ stock รวมแทนมูลค่าถ้ายังไม่ได้คำนวณซับซ้อน
-    # คำนวณมูลค่ารวมจริง
+    # 2. Inventory Health
     all_products = Product.objects.all()
     inventory_value = sum(p.stock * p.price for p in all_products)
     low_stock_items = Product.objects.filter(stock__lte=10).count()
 
-    # --- 3. Supply Chain (จัดซื้อ) ---
+    # 3. Supply Chain
     pending_po_count = PurchaseOrder.objects.filter(status='PENDING').count()
 
-    # --- 4. Quality Control (QC) - Mock Data ---
-    # ในอนาคตต้องสร้างตารางเก็บ Defect จริง
+    # 4. Quality Control (Mock)
     qc_stats = {
         'pass_rate': 98.5,
         'defect_count': 3,
         'last_incident': 'รอยขีดข่วน (Job-6812001)'
     }
 
-    # --- 5. Maintenance (ซ่อมบำรุง) - Mock Data ---
-    # ในอนาคตต้องเชื่อมกับ IoT หรือตารางซ่อมบำรุง
+    # 5. Maintenance (Mock)
     machines = [
         {'name': 'CNC-01', 'status': 'Running', 'uptime': '99%'},
-        {'name': 'CNC-02', 'status': 'Maintenance', 'uptime': '85%'}, # เครื่องนี้เสีย
+        {'name': 'CNC-02', 'status': 'Maintenance', 'uptime': '85%'},
         {'name': 'Assembly-A', 'status': 'Running', 'uptime': '100%'},
     ]
 

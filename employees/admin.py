@@ -2,8 +2,10 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import User
 from django.utils.html import format_html # เครื่องมือสร้างรูปภาพ
-from .models import Employee, Attendance, LeaveRequest, Product, Order, OrderItem, Category, BOMItem, ProductionOrder
 from import_export.admin import ImportExportModelAdmin
+
+# ✅ เพิ่ม CompanyInfo เข้าไปในรายการ import
+from .models import Employee, Attendance, LeaveRequest, Product, Order, OrderItem, Category, BOMItem, ProductionOrder, CompanyInfo
 
 # ==========================================
 # 1. ปรับแต่ง User Admin (หน้ารายชื่อ User)
@@ -56,7 +58,7 @@ class LeaveRequestAdmin(ImportExportModelAdmin):
     list_filter = ('status', 'leave_type')
 
 # ==========================================
-# 4. ✅ ส่วนจัดการหมวดหมู่ (สร้างเมนูใหม่ให้เลย)
+# 4. ✅ ส่วนจัดการหมวดหมู่ (Category & Product)
 # ==========================================
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -65,7 +67,7 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    # ✅ ใช้ field 'category' ตัวจริง (ไม่ต้องใช้ get_category แบบเก่าแล้ว)
+    # ✅ ใช้ field 'category' ตัวจริง
     list_display = ('show_image', 'name', 'category', 'price', 'stock', 'is_active')
 
     # แก้ไขหมวดหมู่ได้ทันทีจากหน้ารวม (List Editable)
@@ -77,12 +79,10 @@ class ProductAdmin(admin.ModelAdmin):
     # ตัวกรองด้านขวา
     list_filter = ('category', 'is_active')
 
-    # ฟังก์ชันโชว์รูปภาพ (ใช้แบบกล่องสีเทา No Img ตามที่คุณชอบ)
+    # ฟังก์ชันโชว์รูปภาพ
     def show_image(self, obj):
         if obj.image:
-            # กรณีมีรูปจริง
             return format_html('<img src="{}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;">', obj.image.url)
-        # กรณีไม่มีรูป
         return format_html('<img src="https://placehold.co/50x50?text=No+Img" style="width: 50px; height: 50px; border-radius: 5px; opacity: 0.5;">')
 
     show_image.short_description = 'รูปตัวอย่าง'
@@ -122,6 +122,18 @@ class ProductionOrderAdmin(admin.ModelAdmin):
     list_filter = ('status', 'created_at')
     search_fields = ('product__name', 'note')
     date_hierarchy = 'created_at'
-
-    # ทำให้เปลี่ยนสถานะได้จากหน้า List เลย (สะดวกมาก!)
     list_editable = ('status',)
+
+# ==========================================
+# 6. 🏢 ข้อมูลบริษัท (Global Company Settings) ✅ เพิ่มใหม่
+# ==========================================
+@admin.register(CompanyInfo)
+class CompanyInfoAdmin(admin.ModelAdmin):
+    list_display = ['name_th', 'tax_id', 'phone']
+    
+    # เทคนิค: ป้องกันไม่ให้สร้างข้อมูลบริษัทเกิน 1 แห่ง
+    def has_add_permission(self, request):
+        # ถ้ามีข้อมูลอยู่แล้ว ห้ามสร้างเพิ่ม (ให้กดแก้ไขของเดิมเอา)
+        if CompanyInfo.objects.exists():
+            return False
+        return True

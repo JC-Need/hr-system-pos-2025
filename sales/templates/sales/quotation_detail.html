@@ -2,101 +2,193 @@
 {% load humanize %}
 
 {% block content %}
+<style>
+    /* 🌿 ธีมสีเขียว Borcelle (Green Minimal) */
+    :root {
+        --theme-color: #2C5F2D;
+        --theme-light: #E8F5E9;
+    }
+    .text-theme { color: var(--theme-color) !important; }
+    .bg-theme { background-color: var(--theme-color) !important; color: white !important; }
+    .bg-theme-light { background-color: var(--theme-light) !important; }
+    .btn-theme { background-color: var(--theme-color); color: white; border: none; }
+    .btn-theme:hover { background-color: #1e4220; color: white; }
+    .border-theme { border-color: var(--theme-color) !important; }
+    
+    /* 📄 จัดหน้ากระดาษ A4 */
+    .a4-paper {
+        background: white;
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0 auto;
+        padding: 30px 40px;
+        position: relative;
+        box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    
+    @media print {
+        body { background: white; -webkit-print-color-adjust: exact; }
+        .d-print-none { display: none !important; }
+        .container { max-width: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
+        .a4-paper { box-shadow: none; margin: 0; width: 100%; padding: 20px 30px; }
+        .bg-theme { background-color: var(--theme-color) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+</style>
+
 <div class="container mt-4 mb-5">
+    
     <div class="d-flex justify-content-between mb-4 d-print-none">
-        <a href="{% url 'quotation_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> กลับหน้ารายการ</a>
+        <a href="{% url 'quotation_list' %}" class="btn btn-secondary shadow-sm rounded-pill px-4">
+            <i class="fas fa-arrow-left me-2"></i> กลับหน้ารายการ
+        </a>
+        
         <div>
             {% if qt.status == 'DRAFT' %}
-                <form method="post" style="display:inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="save_qt" value="true">
-                    <button type="submit" class="btn btn-success me-2"><i class="fas fa-calculator"></i> คำนวณยอดเงิน</button>
-                </form>
+            <a href="{% url 'quotation_edit' qt.id %}" class="btn btn-warning text-white shadow-sm rounded-pill px-4 me-2">
+                <i class="fas fa-pen me-2"></i> แก้ไขรายการ
+            </a>
             {% endif %}
-            <button onclick="window.print()" class="btn btn-primary"><i class="fas fa-print"></i> พิมพ์เอกสาร (A4)</button>
+
+            <button onclick="window.print()" class="btn btn-theme shadow-sm rounded-pill px-4">
+                <i class="fas fa-print me-2"></i> พิมพ์เอกสาร (A4)
+            </button>
         </div>
     </div>
 
-    <div class="card shadow-sm p-5" style="min-height: 297mm; position: relative;">
-        <div class="row mb-4">
-            <div class="col-8">
-                <h2 class="fw-bold text-primary"><i class="fas fa-building me-2"></i>บริษัท เจซี จำกัด</h2>
-                <p class="mb-0 small">123 นิคมอุตสาหกรรมบางพลี ต.บางเสาธง จ.สมุทรปราการ 10540</p>
-                <p class="small">โทร: 02-xxx-xxxx | Tax ID: 011555xxxxxxx</p>
-            </div>
-            <div class="col-4 text-end">
-                <h3 class="fw-bold text-uppercase">ใบเสนอราคา</h3>
-                <h5 class="text-muted">QUOTATION</h5>
-            </div>
-        </div>
-        <hr>
-        <div class="row mb-4">
+    <div class="a4-paper">
+        
+        <div class="row mb-3 align-items-start">
             <div class="col-7">
-                <h6 class="fw-bold text-muted small">ลูกค้า (CUSTOMER):</h6>
-                <h5 class="fw-bold">{{ qt.customer_name }}</h5>
-                <p class="mb-1 small">{{ qt.customer_address|linebreaksbr }}</p>
-                <p class="small"><strong>เลขผู้เสียภาษี:</strong> {{ qt.customer_tax_id|default:"-" }}</p>
+                <div class="d-flex align-items-center mb-2">
+                    {% if company.logo %}
+                        <img src="{{ company.logo.url }}" alt="Logo" style="height: 50px; margin-right: 12px;">
+                    {% else %}
+                        <div class="bg-theme text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; margin-right: 12px;">
+                            <i class="fas fa-coffee fa-lg"></i>
+                        </div>
+                    {% endif %}
+                    
+                    <div>
+                        <h3 class="fw-bold text-theme m-0 lh-1">{{ company.name_th }}</h3>
+                        {% if company.name_en %}
+                            <small class="text-muted text-uppercase" style="font-size: 0.75rem; letter-spacing: 1px;">{{ company.name_en }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="small text-secondary ps-2 border-start border-3 border-theme" style="font-size: 0.85rem; line-height: 1.4;">
+                    <p class="mb-0">{{ company.address }}</p>
+                    <p class="mb-0">โทร: {{ company.phone }} | Tax ID: {{ company.tax_id }}</p>
+                    {% if company.email %}<p class="mb-0">Email: {{ company.email }}</p>{% endif %}
+                </div>
             </div>
-            <div class="col-5">
-                <table class="table table-bordered table-sm small mb-0">
-                    <tr><th class="bg-light">เลขที่ (QT No.):</th><td class="fw-bold">{{ qt.qt_number }}</td></tr>
-                    <tr><th class="bg-light">วันที่ (Date):</th><td>{{ qt.date|date:"d/m/Y" }}</td></tr>
-                    <tr><th class="bg-light">พนักงานขาย:</th><td>{{ qt.sales_person.first_name }}</td></tr>
+
+            <div class="col-5 text-end">
+                <h6 class="text-secondary text-uppercase mb-0" style="letter-spacing: 2px; font-size: 0.7rem;">Quotation</h6>
+                <h2 class="fw-bold text-theme mb-2">ใบเสนอราคา</h2>
+                <table class="table table-sm table-borderless small mb-0 float-end" style="width: auto; font-size: 0.85rem;">
+                    <tr>
+                        <td class="text-end text-muted py-0">เลขที่ (No.):</td>
+                        <td class="text-end fw-bold py-0">{{ qt.qt_number }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-end text-muted py-0">วันที่ (Date):</td>
+                        <td class="text-end fw-bold py-0">{{ qt.date|date:"d M Y" }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-end text-muted py-0">ยืนยันราคาถึง:</td>
+                        <td class="text-end fw-bold py-0">{{ qt.valid_until|date:"d M Y" }}</td>
+                    </tr>
                 </table>
             </div>
         </div>
-        <table class="table table-striped table-bordered mb-4">
-            <thead class="bg-primary text-white text-center">
+
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="p-2 px-3 bg-theme-light rounded-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <h6 class="text-theme fw-bold small mb-1">ลูกค้า (Customer): <span class="text-dark fs-6">{{ qt.customer_name }}</span></h6>
+                        <p class="mb-0 small text-muted" style="line-height: 1.2;">{{ qt.customer_address|linebreaksbr }}</p>
+                    </div>
+                    <div class="text-end">
+                         <p class="mb-0 small"><strong>เลขผู้เสียภาษี:</strong> {{ qt.customer_tax_id|default:"-" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <table class="table table-hover mb-4" style="border-bottom: 2px solid var(--theme-color);">
+            <thead class="bg-theme text-white">
                 <tr>
-                    <th style="width:5%">#</th>
-                    <th style="width:50%">รายการสินค้า</th>
-                    <th style="width:10%">จำนวน</th>
-                    <th style="width:15%">ราคา/หน่วย</th>
-                    <th style="width:20%">รวมเงิน</th>
+                    <th class="py-1 text-center" style="width: 5%;">#</th>
+                    <th class="py-1" style="width: 50%;">รายการสินค้า (Description)</th>
+                    <th class="py-1 text-center" style="width: 10%;">จำนวน</th>
+                    <th class="py-1 text-end" style="width: 15%;">ราคา/หน่วย</th>
+                    <th class="py-1 text-end" style="width: 20%;">รวมเงิน</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in qt.items.all %}
                 <tr>
-                    <td class="text-center">{{ forloop.counter }}</td>
-                    <td>{{ item.product.name }}</td>
-                    <td class="text-center">{{ item.quantity }}</td>
-                    <td class="text-end">{{ item.unit_price|intcomma }}</td>
-                    <td class="text-end">{{ item.total_price|intcomma }}</td>
+                    <td class="text-center text-muted py-2">{{ forloop.counter }}</td>
+                    <td class="fw-bold text-theme py-2">{{ item.product.name }}</td>
+                    <td class="text-center py-2">{{ item.quantity }}</td>
+                    <td class="text-end py-2">{{ item.unit_price|intcomma }}</td>
+                    <td class="text-end fw-bold py-2">{{ item.total_price|intcomma }}</td>
                 </tr>
                 {% endfor %}
+                
+                {% if qt.items.count < 8 %}
+                <tr><td colspan="5" style="height: 30px;"></td></tr>
+                {% endif %}
             </tbody>
         </table>
-        <div class="row">
-            <div class="col-6 offset-6">
-                <table class="table table-bordered table-sm">
-                    <tr><td class="text-end fw-bold">รวมเป็นเงิน</td><td class="text-end">{{ qt.subtotal|intcomma }}</td></tr>
-                    <tr><td class="text-end fw-bold">VAT 7%</td><td class="text-end">{{ qt.vat_amount|intcomma }}</td></tr>
-                    <tr class="table-active"><td class="text-end fw-bold text-primary">ยอดสุทธิ</td><td class="text-end fw-bold fs-5">{{ qt.grand_total|intcomma }}</td></tr>
+
+        <div class="row mb-5">
+            <div class="col-7">
+                <div class="small text-muted">
+                    <p class="fw-bold mb-1 text-theme">เงื่อนไข / หมายเหตุ:</p>
+                    <ul class="ps-3 mb-0" style="font-size: 0.85rem;">
+                        <li>กรุณายืนยันการสั่งซื้อตามใบเสนอราคานี้</li>
+                        <li>ราคานี้ยังไม่รวมค่าขนส่ง (ถ้ามี)</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-5">
+                <table class="table table-borderless table-sm">
+                    <tr>
+                        <td class="text-end text-muted py-0">รวมเป็นเงิน (Subtotal)</td>
+                        <td class="text-end fw-bold py-0">{{ qt.subtotal|intcomma }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-end text-muted py-0">ภาษีมูลค่าเพิ่ม 7% (VAT)</td>
+                        <td class="text-end text-danger py-0">{{ qt.vat_amount|intcomma }}</td>
+                    </tr>
+                    <tr style="border-top: 1px solid var(--theme-color); border-bottom: 2px solid var(--theme-color);">
+                        <td class="text-end fw-bold text-theme py-1 fs-6">ยอดสุทธิ (Grand Total)</td>
+                        <td class="text-end fw-bold text-theme py-1 fs-6">{{ qt.grand_total|intcomma }}</td>
+                    </tr>
                 </table>
             </div>
         </div>
-    </div>
 
-    {% if qt.status == 'DRAFT' %}
-    <div class="card mt-4 shadow-sm d-print-none bg-warning bg-opacity-10 border-warning">
-        <div class="card-body">
-            <h5 class="fw-bold">เพิ่มสินค้า</h5>
-            <form method="post" class="row g-2 align-items-end">
-                {% csrf_token %}
-                <div class="col-md-5">
-                    <label class="small">เลือกสินค้า</label>
-                    <select name="product" class="form-select">
-                        {% for p in products %}<option value="{{ p.id }}">{{ p.name }} (Stock: {{ p.stock }})</option>{% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2"><label class="small">ราคา</label><input type="number" name="price" class="form-control" step="0.01" required></div>
-                <div class="col-md-2"><label class="small">จำนวน</label><input type="number" name="quantity" class="form-control" value="1" required></div>
-                <div class="col-md-3"><button type="submit" name="add_item" class="btn btn-dark w-100">เพิ่มรายการ</button></div>
-            </form>
+        <div class="row mt-auto pt-5" style="margin-top: 30px;">
+            <div class="col-6 text-center">
+                <div style="border-bottom: 1px dashed #ccc; width: 70%; margin: 0 auto 10px;"></div>
+                <p class="fw-bold text-theme mb-0 small">ผู้สั่งซื้อ (Buyer)</p>
+                <p class="small text-muted" style="font-size: 0.75rem;">วันที่: ______/______/______</p>
+            </div>
+            <div class="col-6 text-center">
+                <div style="border-bottom: 1px dashed #ccc; width: 70%; margin: 0 auto 10px;"></div>
+                <p class="fw-bold text-theme mb-0 small">ผู้จัดการ (Authorized Signature)</p>
+                <p class="small text-muted" style="font-size: 0.75rem;">{{ company.name_th }}</p>
+            </div>
         </div>
+        
+        <div class="text-center mt-4 border-top pt-2">
+            <p class="small text-muted mb-0" style="font-size: 0.7rem;">ขอบคุณที่ใช้บริการ (Thank you for your business)</p>
+        </div>
+
     </div>
-    {% endif %}
 </div>
-<style> @media print { body * { visibility: hidden; } .card, .card * { visibility: visible; } .card { position: absolute; left: 0; top: 0; width: 100%; border: none !important; } .d-print-none { display: none !important; } } </style>
 {% endblock %}

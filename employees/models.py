@@ -97,7 +97,7 @@ class LeaveRequest(models.Model):
         return delta.days + 1
 
 # ==========================================
-# 4. ตารางซัพพลายเออร์ (Supplier) - ✅ ใหม่!
+# 4. ตารางซัพพลายเออร์ (Supplier)
 # ==========================================
 class Supplier(models.Model):
     name = models.CharField(max_length=200, verbose_name="ชื่อบริษัท/ร้านค้า")
@@ -122,30 +122,27 @@ class Category(models.Model):
         verbose_name_plural = "จัดการหมวดหมู่สินค้า (Categories)"
 
 # ==========================================
-# 6. ตู้เก็บสินค้า (Product) - ✅ อัปเกรด!
+# 6. ตู้เก็บสินค้า (Product)
 # ==========================================
 class Product(models.Model):
     name = models.CharField(max_length=100, verbose_name="ชื่อสินค้า")
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="หมวดหมู่")
     description = models.TextField(blank=True, null=True, verbose_name="รายละเอียด")
-    # ✅ เพิ่มใหม่: แยกประเภทสินค้า (ขาย vs วัตถุดิบ)
+    
     PRODUCT_TYPES = [
         ('FG', 'สินค้าสำเร็จรูป (Finished Good)'),
         ('RM', 'วัตถุดิบ (Raw Material)'),
     ]
     product_type = models.CharField(max_length=2, choices=PRODUCT_TYPES, default='FG', verbose_name="ประเภทสินค้า")
 
-    # ราคาและการขาย
-    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="ราคาทุน") # ใหม่
+    cost_price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="ราคาทุน")
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="ราคาขาย")
 
-    # สต็อกและการแจ้งเตือน
     stock = models.IntegerField(default=0, verbose_name="จำนวนคงเหลือ")
-    alert_level = models.IntegerField(default=5, verbose_name="แจ้งเตือนเมื่อต่ำกว่า") # ใหม่
+    alert_level = models.IntegerField(default=5, verbose_name="แจ้งเตือนเมื่อต่ำกว่า")
 
-    # ข้อมูลเพิ่มเติม
-    barcode = models.CharField(max_length=50, blank=True, null=True, unique=True, verbose_name="รหัสบาร์โค้ด") # ใหม่
-    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="ซัพพลายเออร์") # ใหม่
+    barcode = models.CharField(max_length=50, blank=True, null=True, unique=True, verbose_name="รหัสบาร์โค้ด")
+    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="ซัพพลายเออร์")
 
     image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name="รูปสินค้า")
     is_active = models.BooleanField(default=True, verbose_name="เปิดขาย")
@@ -154,7 +151,7 @@ class Product(models.Model):
         return f"{self.name} ({self.stock})"
 
 # ==========================================
-# 7. ตู้เก็บหัวบิล (Order)
+# 7. ตู้เก็บหัวบิล (Order) - POS
 # ==========================================
 class Order(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True, verbose_name="พนักงานขาย")
@@ -165,7 +162,7 @@ class Order(models.Model):
         return f"Order #{self.id} by {self.employee.first_name}"
 
 # ==========================================
-# 8. ตู้เก็บรายการในบิล (OrderItem)
+# 8. ตู้เก็บรายการในบิล (OrderItem) - POS
 # ==========================================
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
@@ -182,7 +179,7 @@ class OrderItem(models.Model):
         return f"Unknown Product x {self.quantity}"
 
 # ==========================================
-# 9. บันทึกการเคลื่อนไหวสต็อก (StockTransaction) - ✅ ใหม่!
+# 9. บันทึกการเคลื่อนไหวสต็อก (StockTransaction)
 # ==========================================
 class StockTransaction(models.Model):
     TRANSACTION_TYPES = (
@@ -203,9 +200,8 @@ class StockTransaction(models.Model):
         return f"{self.transaction_type} - {self.product.name} ({self.quantity})"
 
 # ==========================================
-# 10. 🛒 Phase 4: ระบบจัดซื้อ (Purchasing)
+# 10. ระบบจัดซื้อ (Purchasing)
 # ==========================================
-
 class PurchaseOrder(models.Model):
     PO_STATUS = [
         ('PENDING', '📝 รอดำเนินการ (Draft)'),
@@ -242,9 +238,8 @@ class PurchaseOrderItem(models.Model):
         return f"{self.product.name} ({self.quantity})"
 
 # ==========================================
-# 11. 🏭 ระบบผลิต (Manufacturing System) - Phase 4
+# 11. ระบบผลิต (Manufacturing System)
 # ==========================================
-
 class BOMItem(models.Model):
     """
     สูตรการผลิต (Bill of Materials)
@@ -280,3 +275,23 @@ class ProductionOrder(models.Model):
 
     def __str__(self):
         return f"MO-{self.id:04d} : {self.product.name} ({self.quantity})"
+
+# ==========================================
+# 12. ข้อมูลบริษัท (Global Company Info) ✅ เพิ่มใหม่
+# ==========================================
+class CompanyInfo(models.Model):
+    name_th = models.CharField(max_length=200, verbose_name="ชื่อบริษัท (ไทย)", default="บริษัท เจซี จำกัด")
+    name_en = models.CharField(max_length=200, verbose_name="ชื่อบริษัท (อังกฤษ)", blank=True)
+    address = models.TextField(verbose_name="ที่อยู่บริษัท")
+    tax_id = models.CharField(max_length=20, verbose_name="เลขประจำตัวผู้เสียภาษี")
+    phone = models.CharField(max_length=50, verbose_name="เบอร์โทรศัพท์", blank=True)
+    email = models.EmailField(verbose_name="อีเมล", blank=True)
+    website = models.URLField(verbose_name="เว็บไซต์", blank=True)
+    logo = models.ImageField(upload_to='company_logo/', verbose_name="โลโก้บริษัท", blank=True, null=True)
+
+    def __str__(self):
+        return self.name_th
+
+    class Meta:
+        verbose_name = "ข้อมูลบริษัท"
+        verbose_name_plural = "ข้อมูลบริษัท (ตั้งค่า)"
