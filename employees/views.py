@@ -94,6 +94,10 @@ def dashboard(request):
             elif dept == 'Purchasing': return redirect('purchasing_dashboard')
             elif dept == 'Warehouse': return redirect('inventory_dashboard')
             elif dept == 'Production': return redirect('production_dept_dashboard')
+
+            # ✅ เพิ่มส่วนนี้: ถ้าเป็นฝ่ายการตลาด ให้ไปหน้า Marketing Dashboard
+            elif dept == 'Marketing': return redirect('marketing_dashboard')
+
             # แผนกอื่นๆ ไปหน้าประวัติ
             elif dept not in ['Management', 'CEO']:
                 return redirect('employee_detail', emp_id=emp.id)
@@ -104,6 +108,9 @@ def dashboard(request):
     elif view_mode == 'Purchasing': return redirect('purchasing_dashboard')
     elif view_mode == 'Warehouse': return redirect('inventory_dashboard')
     elif view_mode == 'Production': return redirect('production_dept_dashboard')
+
+    # ✅ เพิ่มส่วนนี้: ถ้า CEO กดเลือก Marketing ให้ไปหน้าใหม่
+    elif view_mode == 'Marketing': return redirect('marketing_dashboard')
 
     # --- 3. ข้อมูลสำหรับหน้าเมนูรวม (CEO Overview) ---
     today = timezone.localtime(timezone.now()).date()
@@ -459,32 +466,31 @@ def inventory_dashboard(request):
     # รับค่าประเภทคลังจาก Link (Default = FG)
     view_type = request.GET.get('type', 'FG')
 
-    # 1. แยกแยะประเภทสินค้า (สินค้าขาย vs วัตถุดิบ)
+    # 1. แยกแยะประเภทสินค้า
     if view_type == 'RM':
         products = Product.objects.filter(product_type='RM').order_by('name')
         page_title = "คลังวัตถุดิบ (Raw Materials)"
-        theme_color = "warning" # สีเหลือง/ส้ม
+        theme_color = "warning"
         bg_gradient = "linear-gradient(135deg, #f6c23e 0%, #dda20a 100%)"
         icon = "fa-layer-group"
     else:
         products = Product.objects.filter(product_type='FG').order_by('name')
         page_title = "คลังสินค้าสำเร็จรูป (Finished Goods)"
-        theme_color = "success" # สีเขียว
+        theme_color = "success"
         bg_gradient = "linear-gradient(135deg, #1cc88a 0%, #13855c 100%)"
         icon = "fa-box-open"
 
-    # 2. คำนวณ KPI (ตัวเลขสรุป)
+    # 2. คำนวณ KPI
     total_items = products.count()
-    # นับสินค้าที่ต่ำกว่าจุดสั่งซื้อ (Reorder Point) โดยสมมติว่าถ้าไม่ตั้งไว้คือ < 10
-    low_stock_items = [p for p in products if p.stock <= (10)]
+    low_stock_items = [p for p in products if p.stock <= 10]
     low_stock_count = len(low_stock_items)
-
-    # คำนวณมูลค่ารวมในคลัง (Total Valuation)
-    # (ใช้ราคา price คูณจำนวนสต็อก เพื่อประเมินมูลค่าคร่าวๆ)
     total_value = sum(p.stock * p.price for p in products)
 
-    # 3. ดึงประวัติการเคลื่อนไหวล่าสุด 10 รายการ (Transaction History)
-    recent_transactions = StockTransaction.objects.filter(product__product_type=view_type).order_by('-created_at')[:10]
+    # 3. ดึงประวัติการเคลื่อนไหว
+    recent_transactions = StockTransaction.objects.filter(product__product_type=view_type).order_by('-created_at')[:20] # ดึงมาเยอะหน่อยเผื่อ Scroll
+
+    # ✅ 4. เพิ่มบรรทัดนี้: ดึงหมวดหมู่ทั้งหมดมาเพื่อทำ Dropdown Search
+    categories = Category.objects.all()
 
     context = {
         'products': products,
@@ -497,6 +503,7 @@ def inventory_dashboard(request):
         'low_stock_count': low_stock_count,
         'total_value': total_value,
         'recent_transactions': recent_transactions,
+        'categories': categories, # ✅ ส่งไปหน้าเว็บ
     }
     return render(request, 'employees/inventory_dashboard.html', context)
 
@@ -928,3 +935,53 @@ def production_dept_dashboard(request):
         'low_material_count': low_material_count,
     }
     return render(request, 'employees/production_dept_dashboard.html', context)
+
+@login_required
+def marketing_dashboard(request):
+    today = timezone.localtime(timezone.now()).date()
+
+    # 1. KPI Cards (จำลองตัวเลข)
+    # Marketing Manager ดูภาพรวม
+    ad_budget_used = 15000  # งบที่ใช้ไปเดือนนี้
+    total_leads = 350       # ลูกค้าที่ทักมาทั้งหมด
+    conversion_rate = 12.5  # % ปิดการขายได้
+    roi_percent = 320       # ผลตอบแทนการลงทุน (ROI)
+
+    # 2. กราฟ Lead Trend (Digital Specialist ดู)
+    # สถิติลูกค้าทักย้อนหลัง 7 วัน
+    lead_labels = [(today - timedelta(days=i)).strftime('%d/%m') for i in range(6, -1, -1)]
+    lead_data = [45, 50, 38, 60, 55, 42, 60] # ข้อมูลสมมติ
+
+    # 3. สัดส่วนช่องทาง (Channel Mix)
+    channel_labels = ['Facebook', 'TikTok', 'Google', 'LINE OA', 'Walk-in']
+    channel_data = [50, 25, 10, 10, 5]
+
+    # 4. แคมเปญที่กำลังรันอยู่ (Active Campaigns)
+    # Content Creator & Ads Specialist ดู
+    active_campaigns = [
+        {'name': '🔥 Promotion 10.10 ลดจัดหนัก', 'platform': 'Facebook', 'status': 'Running', 'budget': 5000, 'leads': 120, 'cpl': 41.6},
+        {'name': '🎥 คลิปไวรัล: เบื้องหลังการผลิต', 'platform': 'TikTok', 'status': 'Running', 'budget': 2000, 'leads': 85, 'cpl': 23.5},
+        {'name': '🔍 Search: รับผลิตสินค้า OEM', 'platform': 'Google', 'status': 'Learning', 'budget': 3000, 'leads': 15, 'cpl': 200.0},
+    ]
+
+    # 5. กิจกรรมล่าสุด (Admin ดู)
+    recent_activities = [
+        {'time': '10:30', 'icon': 'fa-comment-dots', 'title': 'Inbox ใหม่ (FB)', 'detail': 'คุณสมชาย สอบถามราคาส่ง'},
+        {'time': '10:15', 'icon': 'fa-thumbs-up', 'title': 'ยอดไลก์พุ่ง!', 'detail': 'โพสต์ "กาแฟลาเต้" ถึง 1,000 ไลก์'},
+        {'time': '09:45', 'icon': 'fa-file-invoice-dollar', 'title': 'ปิดการขายสำเร็จ', 'detail': 'แอดมินส้ม ปิดยอด ฿5,500 ผ่าน LINE'},
+    ]
+
+    context = {
+        'today': today,
+        'ad_budget_used': "{:,.0f}".format(ad_budget_used),
+        'total_leads': total_leads,
+        'conversion_rate': conversion_rate,
+        'roi_percent': roi_percent,
+        'lead_labels': json.dumps(lead_labels),
+        'lead_data': json.dumps(lead_data),
+        'channel_labels': json.dumps(channel_labels),
+        'channel_data': json.dumps(channel_data),
+        'active_campaigns': active_campaigns,
+        'recent_activities': recent_activities,
+    }
+    return render(request, 'employees/marketing_dashboard.html', context)

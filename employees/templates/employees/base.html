@@ -36,7 +36,8 @@
 
                     {% if user.is_authenticated %}
                         
-                        {% if request.user.is_superuser or request.user.username == 'jcneed1975' %}
+                        {% if request.user.is_superuser or request.user.username == 'jcneed1975' or request.resolver_match.url_name == 'employee_detail' %}
+                            
                             {% if request.resolver_match.url_name != 'dashboard' %}
                                 <li class="nav-item">
                                     <a href="{% url 'dashboard' %}" class="btn btn-sm btn-success rounded-pill fw-bold shadow-sm ms-3 text-white">
@@ -44,6 +45,7 @@
                                     </a>
                                 </li>
                             {% endif %}
+
                         {% endif %}
 
                         <li class="nav-item me-auto"></li>
