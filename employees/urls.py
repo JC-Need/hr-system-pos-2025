@@ -69,6 +69,8 @@ urlpatterns = [
     path('dashboard/hr/', views.hr_dashboard, name='hr_dashboard'),
     path('dashboard/sales/', views.sales_dashboard, name='sales_dashboard'),
     path('dashboard/marketing/', views.marketing_dashboard, name='marketing_dashboard'),
+    path('dashboard/accounting/', views.accounting_dashboard, name='accounting_dashboard'),
+    path('dashboard/operations/', views.operations_dashboard, name='operations_dashboard'),
 
     # 13. ออกจากระบบ
     path('logout/', views.logout_view, name='logout'),

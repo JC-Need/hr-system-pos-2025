@@ -1,0 +1,143 @@
+{% extends 'employees/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid mt-4 pb-5">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-1" style="color: #fd7e14;">
+                <i class="fas fa-cogs me-2"></i> Operations Command Center
+            </h3>
+            <p class="text-muted small">ศูนย์บัญชาการฝ่ายปฏิบัติการ (COO Dashboard)</p>
+        </div>
+        <div>
+            <a href="{% url 'employee_detail' request.user.employee.id|default:0 %}" class="btn btn-warning fw-bold rounded-pill shadow-sm text-dark px-3">
+                <i class="fas fa-id-card me-1"></i> ข้อมูลส่วนตัว
+            </a>
+            
+            <button class="btn btn-dark fw-bold rounded-pill shadow-sm ms-2">
+                <i class="fas fa-file-download me-1"></i> รายงานประจำวัน
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="fw-bold text-muted small text-uppercase">ประสิทธิภาพการผลิต (Daily Target)</h6>
+                            <h3 class="fw-bold text-dark">{{ completed_today }} / {{ daily_target }} <small class="fs-6 text-muted">Jobs</small></h3>
+                        </div>
+                        <span class="badge bg-primary rounded-pill">{{ production_progress }}%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ production_progress }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="fw-bold text-muted small text-uppercase">มูลค่าสต็อกรวม (Inventory)</h6>
+                            <h3 class="fw-bold text-dark">฿{{ inventory_value }}</h3>
+                        </div>
+                        <div class="text-end">
+                            <span class="d-block text-danger fw-bold small"><i class="fas fa-exclamation-circle"></i> {{ low_stock_items }}</span>
+                            <small class="text-muted">ของใกล้หมด</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="fw-bold text-muted small text-uppercase">คุณภาพสินค้า (QC Pass Rate)</h6>
+                            <h3 class="fw-bold text-success">{{ qc_stats.pass_rate }}%</h3>
+                        </div>
+                        <div class="text-end">
+                            <span class="d-block text-danger fw-bold small">{{ qc_stats.defect_count }} ชิ้น</span>
+                            <small class="text-muted">ของเสียวันนี้</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow border-0 h-100">
+                <div class="card-header bg-white py-3 border-bottom-0">
+                    <h6 class="m-0 fw-bold text-secondary"><i class="fas fa-microchip me-2"></i>สถานะเครื่องจักร (Machine Monitoring)</h6>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-secondary small text-uppercase">
+                            <tr>
+                                <th class="ps-4">เครื่องจักร</th>
+                                <th class="text-center">สถานะ</th>
+                                <th class="text-center">Uptime</th>
+                                <th class="text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for machine in machines %}
+                            <tr>
+                                <td class="ps-4 fw-bold text-dark">{{ machine.name }}</td>
+                                <td class="text-center">
+                                    {% if machine.status == 'Running' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success"><i class="fas fa-circle fa-xs me-1"></i> กำลังผลิต</span>
+                                    {% else %}
+                                        <span class="badge bg-danger bg-opacity-10 text-danger"><i class="fas fa-wrench fa-xs me-1"></i> ซ่อมบำรุง</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center fw-bold">{{ machine.uptime }}</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-light border shadow-sm">Details</button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow border-0 h-100">
+                <div class="card-header bg-white py-3 border-bottom-0">
+                    <h6 class="m-0 fw-bold text-secondary"><i class="fas fa-sitemap me-2"></i>แผนกภายใต้กำกับดูแล</h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{% url 'manufacturing_dashboard' %}" class="list-group-item list-group-item-action py-3 d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-industry text-primary me-2" style="width: 25px;"></i> ฝ่ายผลิต (Production)</span>
+                        <i class="fas fa-chevron-right text-muted small"></i>
+                    </a>
+                    <a href="{% url 'inventory_dashboard' %}" class="list-group-item list-group-item-action py-3 d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-warehouse text-warning me-2" style="width: 25px;"></i> คลังสินค้า (Warehouse)</span>
+                        <i class="fas fa-chevron-right text-muted small"></i>
+                    </a>
+                    <a href="{% url 'purchasing_dashboard' %}" class="list-group-item list-group-item-action py-3 d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-shopping-cart text-info me-2" style="width: 25px;"></i> ฝ่ายจัดซื้อ (Purchasing)</span>
+                        <i class="fas fa-chevron-right text-muted small"></i>
+                    </a>
+                </div>
+                <div class="card-footer bg-light border-top-0 p-3">
+                    <small class="text-muted"><i class="fas fa-info-circle me-1"></i> แจ้งเตือน: พบ Defect ล่าสุดจาก {{ qc_stats.last_incident }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

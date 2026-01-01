@@ -1,0 +1,194 @@
+{% extends 'employees/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container-fluid mt-4 pb-5">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold text-dark mb-1" style="color: #0dcaf0;">
+                <i class="fas fa-file-invoice-dollar me-2" style="color: #0aa2c0;"></i> Accounting & Finance
+            </h3>
+            <p class="text-muted small">ระบบบัญชีและการเงิน - ประจำวันที่ {{ today|date:"d M Y" }}</p>
+        </div>
+        <div>
+            <a href="{% url 'employee_detail' request.user.employee.id|default:0 %}" class="btn btn-warning fw-bold rounded-pill shadow-sm text-dark px-3">
+                <i class="fas fa-id-card me-1"></i> ข้อมูลส่วนตัว
+            </a>
+            
+            <button class="btn btn-info text-white fw-bold rounded-pill shadow-sm ms-2">
+                <i class="fas fa-print me-1"></i> รายงานงบการเงิน
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 bg-info bg-opacity-10 border-start border-4 border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-uppercase text-muted small fw-bold mb-1">เงินสดในมือ (Cash)</p>
+                            <h3 class="fw-bold text-dark mb-0">฿{{ cash_on_hand }}</h3>
+                        </div>
+                        <div class="bg-white rounded-circle p-3 text-info shadow-sm">
+                            <i class="fas fa-wallet fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 bg-success bg-opacity-10 border-start border-4 border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-uppercase text-muted small fw-bold mb-1">กำไรสุทธิ (Net Profit)</p>
+                            <h3 class="fw-bold text-success mb-0">+฿{{ net_profit }}</h3>
+                        </div>
+                        <div class="bg-white rounded-circle p-3 text-success shadow-sm">
+                            <i class="fas fa-chart-line fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-uppercase text-muted small fw-bold mb-1">ลูกหนี้การค้า (AR)</p>
+                            <h3 class="fw-bold text-primary mb-0">฿{{ total_ar }}</h3>
+                            <small class="text-muted">รอเก็บเงิน</small>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-3 text-primary">
+                            <i class="fas fa-hand-holding-usd fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-4 border-danger">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-uppercase text-muted small fw-bold mb-1">เจ้าหนี้การค้า (AP)</p>
+                            <h3 class="fw-bold text-danger mb-0">฿{{ total_ap }}</h3>
+                            <small class="text-muted">รอจ่ายเงิน</small>
+                        </div>
+                        <div class="bg-danger bg-opacity-10 rounded-circle p-3 text-danger">
+                            <i class="fas fa-file-invoice fa-lg"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow border-0 h-100">
+                <div class="card-header bg-white py-3 border-bottom-0">
+                    <h6 class="m-0 fw-bold text-secondary"><i class="fas fa-chart-bar me-2"></i>แนวโน้มรายรับ - รายจ่าย (6 เดือนล่าสุด)</h6>
+                </div>
+                <div class="card-body">
+                    <div style="height: 350px; position: relative;">
+                        <canvas id="financeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow border-0 mb-3">
+                <div class="card-header bg-white py-2 border-bottom-0 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 fw-bold text-primary small">📥 บิลรอเก็บเงิน (AR)</h6>
+                    <span class="badge bg-primary rounded-pill">2</span>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for inv in recent_invoices %}
+                    <div class="list-group-item px-3 py-2 border-bottom-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0 text-dark small fw-bold">{{ inv.customer }}</h6>
+                                <small class="text-muted" style="font-size: 11px;">{{ inv.no }} | ครบ: {{ inv.due }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="d-block fw-bold text-dark small">฿{{ inv.amount|intcomma }}</span>
+                                {% if inv.status == 'Overdue' %}
+                                    <span class="badge bg-danger" style="font-size: 10px;">เกินกำหนด</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark" style="font-size: 10px;">รอเก็บ</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="card shadow border-0">
+                <div class="card-header bg-white py-2 border-bottom-0 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 fw-bold text-danger small">📤 บิลรอจ่าย (AP)</h6>
+                    <span class="badge bg-danger rounded-pill">2</span>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for bill in recent_bills %}
+                    <div class="list-group-item px-3 py-2 border-bottom-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0 text-dark small fw-bold">{{ bill.supplier }}</h6>
+                                <small class="text-muted" style="font-size: 11px;">{{ bill.no }} | ครบ: {{ bill.due }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="d-block fw-bold text-dark small">฿{{ bill.amount|intcomma }}</span>
+                                <span class="badge bg-secondary" style="font-size: 10px;">รอจ่าย</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('financeChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: JSON.parse('{{ chart_labels|safe }}'),
+                datasets: [
+                    {
+                        label: 'รายรับ (Income)',
+                        data: JSON.parse('{{ income_data|safe }}'),
+                        backgroundColor: '#1cc88a',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'รายจ่าย (Expense)',
+                        data: JSON.parse('{{ expense_data|safe }}'),
+                        backgroundColor: '#e74a3b',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                maintainAspectRatio: false,
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, grid: { borderDash: [2, 2] } }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

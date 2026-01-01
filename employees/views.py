@@ -7,11 +7,11 @@ from django.contrib import messages
 from django.utils import timezone
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.models import User
 
 # ✅ Import Models & Forms
 from .models import Employee, Attendance, LeaveRequest, Product, Order, OrderItem, Category, Supplier, StockTransaction, PurchaseOrder, PurchaseOrderItem, BOMItem, ProductionOrder
 from .forms import LeaveRequestForm, ProductForm, SupplierForm, PurchaseOrderForm, BOMForm
-from django.contrib.auth.models import User
 
 import datetime
 from datetime import timedelta
@@ -35,8 +35,9 @@ def is_admin(user):
 # 🤖 ฟังก์ชันส่ง LINE
 # ==========================================
 def send_line_alert(message, target_id=None):
-    LINE_TOKEN = 'R8cR4RQiDZA9sRljWNa8f6TaspfFYUxBoGaLNUAIBfaxD5iiN0jWiI2e34NAkXP36GBtALNyEk7foed2g1bdkArDqhA9NbhPeVqYqGdElngJt7+YHjdsiNv81geRXVfrKqD4UQABNNemXFfFwCW1uAdB04t89/1O/w1cDnyilFU='
-    BOSS_ID = 'Ubb324ad1f45ef40d567ee70823007142'
+    # ใส่ Token ของคุณที่นี่
+    LINE_TOKEN = 'YOUR_LINE_TOKEN_HERE'
+    BOSS_ID = 'YOUR_BOSS_LINE_ID'
 
     if target_id is None:
         target_id = BOSS_ID
@@ -94,9 +95,11 @@ def dashboard(request):
             elif dept == 'Purchasing': return redirect('purchasing_dashboard')
             elif dept == 'Warehouse': return redirect('inventory_dashboard')
             elif dept == 'Production': return redirect('production_dept_dashboard')
-
-            # ✅ เพิ่มส่วนนี้: ถ้าเป็นฝ่ายการตลาด ให้ไปหน้า Marketing Dashboard
             elif dept == 'Marketing': return redirect('marketing_dashboard')
+            elif dept == 'Accounting': return redirect('accounting_dashboard')
+
+            # ✅ เพิ่มบรรทัดนี้: ถ้าเป็นฝ่ายปฏิบัติการ ให้ไปหน้า Operations Dashboard
+            elif dept == 'Operations': return redirect('operations_dashboard')
 
             # แผนกอื่นๆ ไปหน้าประวัติ
             elif dept not in ['Management', 'CEO']:
@@ -108,9 +111,9 @@ def dashboard(request):
     elif view_mode == 'Purchasing': return redirect('purchasing_dashboard')
     elif view_mode == 'Warehouse': return redirect('inventory_dashboard')
     elif view_mode == 'Production': return redirect('production_dept_dashboard')
-
-    # ✅ เพิ่มส่วนนี้: ถ้า CEO กดเลือก Marketing ให้ไปหน้าใหม่
     elif view_mode == 'Marketing': return redirect('marketing_dashboard')
+    elif view_mode == 'Accounting': return redirect('accounting_dashboard')
+    elif view_mode == 'Operations': return redirect('operations_dashboard')
 
     # --- 3. ข้อมูลสำหรับหน้าเมนูรวม (CEO Overview) ---
     today = timezone.localtime(timezone.now()).date()
@@ -125,7 +128,7 @@ def dashboard(request):
     return render(request, 'employees/dashboard.html', context)
 
 # ==========================================
-# 📊 Sales Dashboard (แยกหน้าใหม่)
+# 📊 Sales Dashboard
 # ==========================================
 @login_required
 def sales_dashboard(request):
@@ -181,7 +184,7 @@ def sales_dashboard(request):
     return render(request, 'employees/sales_dashboard.html', context)
 
 # ==========================================
-# 🏢 HR Dashboard (แยกหน้าใหม่)
+# 🏢 HR Dashboard
 # ==========================================
 @login_required
 def hr_dashboard(request):
@@ -345,7 +348,7 @@ def delete_employee(request, emp_id):
     return redirect('dashboard')
 
 # ==========================================
-# 5. ฟังก์ชันอื่นๆ
+# 5. ฟังก์ชันอื่นๆ (Payslip, Attendance, Dept)
 # ==========================================
 @login_required
 def employee_payslip(request, emp_id):
@@ -445,6 +448,7 @@ def pos_checkout(request):
             total_amount = data.get('total_amount', 0)
             emp = get_employee_from_user(request.user)
             order = Order.objects.create(employee=emp, total_amount=total_amount)
+
             for item in cart:
                 product = Product.objects.get(id=item['id'])
                 quantity = item['quantity']
@@ -463,10 +467,8 @@ def pos_checkout(request):
 
 @login_required
 def inventory_dashboard(request):
-    # รับค่าประเภทคลังจาก Link (Default = FG)
     view_type = request.GET.get('type', 'FG')
 
-    # 1. แยกแยะประเภทสินค้า
     if view_type == 'RM':
         products = Product.objects.filter(product_type='RM').order_by('name')
         page_title = "คลังวัตถุดิบ (Raw Materials)"
@@ -480,16 +482,12 @@ def inventory_dashboard(request):
         bg_gradient = "linear-gradient(135deg, #1cc88a 0%, #13855c 100%)"
         icon = "fa-box-open"
 
-    # 2. คำนวณ KPI
     total_items = products.count()
     low_stock_items = [p for p in products if p.stock <= 10]
     low_stock_count = len(low_stock_items)
     total_value = sum(p.stock * p.price for p in products)
 
-    # 3. ดึงประวัติการเคลื่อนไหว
-    recent_transactions = StockTransaction.objects.filter(product__product_type=view_type).order_by('-created_at')[:20] # ดึงมาเยอะหน่อยเผื่อ Scroll
-
-    # ✅ 4. เพิ่มบรรทัดนี้: ดึงหมวดหมู่ทั้งหมดมาเพื่อทำ Dropdown Search
+    recent_transactions = StockTransaction.objects.filter(product__product_type=view_type).order_by('-created_at')[:20]
     categories = Category.objects.all()
 
     context = {
@@ -503,7 +501,7 @@ def inventory_dashboard(request):
         'low_stock_count': low_stock_count,
         'total_value': total_value,
         'recent_transactions': recent_transactions,
-        'categories': categories, # ✅ ส่งไปหน้าเว็บ
+        'categories': categories,
     }
     return render(request, 'employees/inventory_dashboard.html', context)
 
@@ -513,7 +511,6 @@ def product_create(request):
         form = ProductForm(request.POST, request.FILES)
         if form.is_valid():
             product = form.save()
-            # บันทึก Transaction แรกรับ (Opening Stock)
             if product.stock > 0:
                 StockTransaction.objects.create(
                     product=product,
@@ -557,24 +554,15 @@ def supplier_create(request):
     return render(request, 'employees/product_form.html', {'form': form, 'title': 'เพิ่มซัพพลายเออร์'})
 
 # ==========================================
-# 🛒 10. ระบบจัดซื้อ & Dashboard (Purchasing System)
+# 🛒 10. ระบบจัดซื้อ & Dashboard
 # ==========================================
 
-# --- 📊 A. ส่วน Dashboard (เพิ่มใหม่!) ---
 @login_required
 def purchasing_dashboard(request):
-    # 1. ข้อมูล KPI หลัก
     total_spend = PurchaseOrder.objects.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
     pending_pos = PurchaseOrder.objects.filter(status='PENDING').count()
-
-    # 2. เช็กของใกล้หมด (Low Stock Alerts)
-    # วัตถุดิบ (RM) ที่ต้องซื้อด่วน (คงเหลือน้อยกว่า 10)
     low_stock_rm = Product.objects.filter(product_type='RM', stock__lte=10).order_by('stock')[:5]
-
-    # สินค้าขาย (FG) ที่ต้องซื้อด่วน
     low_stock_fg = Product.objects.filter(product_type='FG', stock__lte=10).order_by('stock')[:5]
-
-    # 3. ใบสั่งซื้อล่าสุด 5 ใบ
     recent_orders = PurchaseOrder.objects.all().order_by('-created_at')[:5]
 
     context = {
@@ -586,16 +574,13 @@ def purchasing_dashboard(request):
     }
     return render(request, 'employees/purchasing_dashboard.html', context)
 
-# --- 🛒 B. ส่วนจัดการใบสั่งซื้อ (PO Logic) ---
 @login_required
 def po_list(request):
-    # แสดงรายการใบสั่งซื้อทั้งหมด เรียงจากใหม่ไปเก่า
     orders = PurchaseOrder.objects.all().order_by('-created_at')
     return render(request, 'employees/po_list.html', {'orders': orders})
 
 @login_required
 def po_create(request):
-    # สร้างใบสั่งซื้อใหม่ (Header)
     if request.method == 'POST':
         form = PurchaseOrderForm(request.POST)
         if form.is_valid():
@@ -603,33 +588,29 @@ def po_create(request):
             po.created_by = request.user
             po.save()
             messages.success(request, f"สร้างใบสั่งซื้อ {po.po_number} แล้ว! กรุณาเพิ่มรายการสินค้า")
-            return redirect('po_detail', po_id=po.id) # ไปหน้าเพิ่มสินค้าต่อเลย
+            return redirect('po_detail', po_id=po.id)
     else:
         form = PurchaseOrderForm()
     return render(request, 'employees/po_form.html', {'form': form, 'title': 'เปิดใบสั่งซื้อใหม่'})
 
 @login_required
 def po_detail(request, po_id):
-    # หน้ารายละเอียด PO (จุดที่ใช้เพิ่มสินค้า และกดรับของ)
     po = get_object_or_404(PurchaseOrder, pk=po_id)
-    products = Product.objects.all().order_by('name') # ดึงสินค้ามาให้เลือก
+    products = Product.objects.all().order_by('name')
 
     if request.method == 'POST' and po.status == 'PENDING':
-        # รับค่าจากฟอร์มเพิ่มสินค้า (แบบง่าย)
         product_id = request.POST.get('product_id')
         quantity = float(request.POST.get('quantity'))
         price = float(request.POST.get('price'))
 
         product = Product.objects.get(id=product_id)
 
-        # บันทึกลงตารางลูก (Item)
         PurchaseOrderItem.objects.create(
             purchase_order=po,
             product=product,
             quantity=quantity,
             unit_price=price
         )
-        # อัปเดตยอดรวมใบสั่งซื้อ
         po.total_amount += (quantity * price)
         po.save()
         messages.success(request, f"เพิ่ม {product.name} เรียบร้อย")
@@ -639,18 +620,14 @@ def po_detail(request, po_id):
 
 @login_required
 def po_receive(request, po_id):
-    # ฟังก์ชันสำหรับกดรับของ (Stock In)
     po = get_object_or_404(PurchaseOrder, pk=po_id)
 
     if po.status == 'PENDING':
-        # 1. วนลูปสินค้าทุกตัวในบิล เพื่อเอาเข้าสต็อก
         for item in po.items.all():
             product = item.product
-            # เพิ่มสต็อกจริง!
             product.stock += item.quantity
             product.save()
 
-            # 2. บันทึกประวัติ Transaction (Log)
             StockTransaction.objects.create(
                 product=product,
                 transaction_type='IN',
@@ -660,7 +637,6 @@ def po_receive(request, po_id):
                 note=f"รับของจาก PO: {po.po_number}"
             )
 
-        # 3. เปลี่ยนสถานะบิลเป็น "ได้รับแล้ว"
         po.status = 'RECEIVED'
         po.save()
         messages.success(request, f"✅ รับของเข้าคลังเรียบร้อย! (PO: {po.po_number})")
@@ -668,27 +644,18 @@ def po_receive(request, po_id):
     return redirect('po_list')
 
 # ==========================================
-# 🏭 11. ระบบผลิต (Manufacturing System) - Phase 4
+# 🏭 11. ระบบผลิต (Manufacturing System)
 # ==========================================
 
 @login_required
 def manufacturing_dashboard(request):
-    # 1. สรุปยอดผลิต
     pending_orders = ProductionOrder.objects.filter(status='PENDING').count()
     in_progress_orders = ProductionOrder.objects.filter(status='IN_PROGRESS').count()
     completed_today = ProductionOrder.objects.filter(status='COMPLETED', updated_at__date=timezone.now().date()).count()
-
-    # 2. รายการใบสั่งผลิตทั้งหมด (เรียงจากใหม่ไปเก่า)
     orders = ProductionOrder.objects.all().order_by('-created_at')
-
-    # 3. สินค้าที่ผลิตได้ (ที่มีสูตร BOM แล้ว)
     producible_products = Product.objects.filter(product_type='FG', bom_items__isnull=False).distinct()
-
-    # --- เตรียมข้อมูลสำหรับ Form สร้างสูตร (BOM) ---
-    all_fgs = Product.objects.filter(product_type='FG') # ดึงสินค้า FG ทั้งหมด
-    all_rms = Product.objects.filter(product_type='RM') # ดึงวัตถุดิบ RM ทั้งหมด
-
-    # ✅ ดึงหมวดหมู่ทั้งหมดมาใช้กรอง Dropdown
+    all_fgs = Product.objects.filter(product_type='FG')
+    all_rms = Product.objects.filter(product_type='RM')
     all_categories = Category.objects.all()
 
     context = {
@@ -699,48 +666,38 @@ def manufacturing_dashboard(request):
         'producible_products': producible_products,
         'all_fgs': all_fgs,
         'all_rms': all_rms,
-        # ✅ เพิ่มหมวดหมู่เข้าไป
         'all_categories': all_categories,
     }
     return render(request, 'employees/manufacturing_dashboard.html', context)
 
 @login_required
 def mo_create(request):
-    """ สร้างใบสั่งผลิตพร้อมเลข JOB (Format: JOB6812xxx) """
     if request.method == 'POST':
         product_id = request.POST.get('product_id')
         quantity = int(request.POST.get('quantity', 1))
 
         product = get_object_or_404(Product, pk=product_id)
 
-        # --- สูตรคำนวณเลข JOB (รันตาม ปี-เดือน) ---
         now = datetime.datetime.now()
-        thai_year = (now.year + 543) % 100  # แปลงปี ค.ศ. เป็น พ.ศ. 2 หลัก (เช่น 2568 -> 68)
-        month = now.strftime('%m')          # เดือน 2 หลัก (เช่น 12)
-        prefix = f"JOB{thai_year}{month}"   # จะได้คำนำหน้า เช่น "JOB6812"
+        thai_year = (now.year + 543) % 100
+        month = now.strftime('%m')
+        prefix = f"JOB{thai_year}{month}"
 
-        # ค้นหาใบงานล่าสุดที่มีเลขขึ้นต้นด้วย prefix นี้
         last_job = ProductionOrder.objects.filter(job_number__startswith=prefix).order_by('job_number').last()
 
         if last_job and last_job.job_number:
-            # ถ้ามีของเก่า ให้ตัดเอา 3 ตัวท้ายมาบวก 1
             try:
-                # เช่น JOB6812005 -> เอา "005" มาบวก 1 เป็น 6
                 last_seq = int(last_job.job_number[-3:])
                 new_seq = last_seq + 1
             except ValueError:
                 new_seq = 1
         else:
-            # ถ้ายังไม่มีของเดือนนี้ ให้เริ่มที่ 1
             new_seq = 1
 
-        # ประกอบร่างเป็นเลข JOB เต็มๆ (เช่น JOB6812001)
         new_job_number = f"{prefix}{new_seq:03d}"
-        # -------------------------------------------
 
-        # บันทึกลงฐานข้อมูล
         ProductionOrder.objects.create(
-            job_number=new_job_number,  # บันทึกเลข JOB ที่สร้างใหม่
+            job_number=new_job_number,
             product=product,
             quantity=quantity,
             created_by=request.user,
@@ -755,39 +712,29 @@ def mo_create(request):
 
 @login_required
 def mo_complete(request, mo_id):
-    """
-    🔥 หัวใจสำคัญ: กดจบงานผลิต
-    1. เช็กสูตร (BOM)
-    2. เช็กวัตถุดิบ (RM) ว่าพอไหม?
-    3. ตัดสต็อก RM -> เพิ่มสต็อก FG
-    """
     mo = get_object_or_404(ProductionOrder, pk=mo_id)
 
     if mo.status == 'COMPLETED':
         messages.warning(request, "ใบงานนี้ผลิตเสร็จไปแล้ว!")
         return redirect('manufacturing_dashboard')
 
-    # 1. ดึงสูตรการผลิต (BOM)
     bom_items = BOMItem.objects.filter(finished_good=mo.product)
 
     if not bom_items.exists():
         messages.error(request, f"❌ ไม่พบสูตรการผลิตสำหรับ {mo.product.name} กรุณาตั้งค่า BOM ในหน้า Admin ก่อน")
         return redirect('manufacturing_dashboard')
 
-    # 2. ตรวจสอบสต็อกวัตถุดิบก่อน (Check Stock)
     for item in bom_items:
         required_qty = item.quantity * mo.quantity
         if item.raw_material.stock < required_qty:
             messages.error(request, f"❌ วัตถุดิบไม่พอ! ({item.raw_material.name} ขาด {required_qty - item.raw_material.stock})")
             return redirect('manufacturing_dashboard')
 
-    # 3. ถ้าของพอ -> ลุยตัดสต็อกจริง! (Deduct Stock)
     for item in bom_items:
         required_qty = item.quantity * mo.quantity
         item.raw_material.stock -= required_qty
         item.raw_material.save()
 
-        # บันทึกประวัติการใช้วัตถุดิบ
         StockTransaction.objects.create(
             product=item.raw_material,
             transaction_type='OUT',
@@ -796,11 +743,9 @@ def mo_complete(request, mo_id):
             note=f"ใช้ผลิต {mo.product.name} (MO-{mo.id})"
         )
 
-    # 4. เพิ่มสต็อกสินค้าสำเร็จรูป (Add FG Stock)
     mo.product.stock += mo.quantity
     mo.product.save()
 
-    # บันทึกประวัติรับสินค้าเข้า
     StockTransaction.objects.create(
         product=mo.product,
         transaction_type='IN',
@@ -809,7 +754,6 @@ def mo_complete(request, mo_id):
         note=f"ผลิตเสร็จสิ้น (MO-{mo.id})"
     )
 
-    # 5. อัปเดตสถานะใบสั่งผลิต
     mo.status = 'COMPLETED'
     mo.updated_at = timezone.now()
     mo.save()
@@ -819,7 +763,6 @@ def mo_complete(request, mo_id):
 
 @login_required
 def mo_delete(request, mo_id):
-    """ ลบใบสั่งผลิต (เฉพาะที่ยังไม่เสร็จ) """
     mo = get_object_or_404(ProductionOrder, pk=mo_id)
     if mo.status == 'COMPLETED':
         messages.error(request, "ไม่สามารถลบงานที่ผลิตเสร็จแล้วได้ (สต็อกตัดไปแล้ว)")
@@ -828,26 +771,20 @@ def mo_delete(request, mo_id):
         messages.success(request, "ลบใบสั่งผลิตเรียบร้อย")
     return redirect('manufacturing_dashboard')
 
-# ==========================================
-# 🏭 ส่วนเสริม: Quick Actions (สร้างด่วน)
-# ==========================================
-
 @login_required
 def quick_create_product(request, p_type):
-    """ สร้างสินค้าด่วน (FG หรือ RM) จากหน้าผลิต """
     if request.method == 'POST':
         name = request.POST.get('name')
         category_id = request.POST.get('category')
         price = request.POST.get('price', 0)
         stock = request.POST.get('stock', 0)
 
-        # สร้างสินค้าใหม่
         Product.objects.create(
             name=name,
             category_id=category_id if category_id else None,
             price=price,
             stock=stock,
-            product_type=p_type, # กำหนดประเภทตามที่ส่งมา (FG/RM)
+            product_type=p_type,
             is_active=True
         )
         type_name = "สินค้า (FG)" if p_type == 'FG' else "วัตถุดิบ (RM)"
@@ -857,27 +794,21 @@ def quick_create_product(request, p_type):
 
 @login_required
 def quick_create_bom(request):
-    """ สร้างสูตรการผลิต (BOM) แบบ Dynamic (1 FG -> หลาย RM) """
     if request.method == 'POST':
-        # 1. รับค่าสินค้าหลัก (FG)
         finished_good_id = request.POST.get('finished_good')
         finished_good = get_object_or_404(Product, pk=finished_good_id)
 
-        # 2. รับค่าวัตถุดิบเป็นลิสต์ (Arrays)
         rm_ids = request.POST.getlist('raw_material[]')
         quantities = request.POST.getlist('quantity[]')
 
         saved_count = 0
 
-        # 3. วนลูปบันทึกทีละรายการ
         for i in range(len(rm_ids)):
             rm_id = rm_ids[i]
             qty = quantities[i]
 
             if rm_id and float(qty) > 0:
                 raw_material = Product.objects.get(pk=rm_id)
-
-                # สร้างหรืออัปเดตสูตร
                 BOMItem.objects.create(
                     finished_good=finished_good,
                     raw_material=raw_material,
@@ -894,30 +825,19 @@ def quick_create_bom(request):
 
 @login_required
 def production_dept_dashboard(request):
-    """
-    🏭 Production Department Dashboard (Separate Page)
-    หน้ารวม KPI, กำลังพล, และสถานะงาน สำหรับหัวหน้าฝ่ายผลิต
-    """
     today = timezone.localtime(timezone.now()).date()
 
-    # 1. ข้อมูลกำลังพล (Manpower)
     prod_emps = Employee.objects.filter(department='Production')
     prod_total = prod_emps.count()
     prod_present = Attendance.objects.filter(date=today, employee__department='Production').count()
     prod_absent = prod_total - prod_present
-
-    # รายชื่อคนขาด/ลา (เพื่อแสดงในตาราง)
     absent_employees = prod_emps.exclude(id__in=Attendance.objects.filter(date=today).values('employee_id'))
 
-    # 2. สถานะงาน (Job Status)
     jobs_pending = ProductionOrder.objects.filter(status='PENDING').count()
     jobs_wip = ProductionOrder.objects.filter(status='IN_PROGRESS').count()
     jobs_done_today = ProductionOrder.objects.filter(status='COMPLETED', updated_at__date=today).count()
-
-    # 3. งานล่าสุด 10 รายการ
     recent_jobs = ProductionOrder.objects.all().order_by('-updated_at')[:10]
 
-    # 4. แจ้งเตือนวัตถุดิบหมด (Material Alert)
     low_materials = Product.objects.filter(product_type='RM', stock__lte=10)
     low_material_count = low_materials.count()
 
@@ -936,35 +856,31 @@ def production_dept_dashboard(request):
     }
     return render(request, 'employees/production_dept_dashboard.html', context)
 
+# ==========================================
+# 📣 12. Marketing Dashboard (ฝ่ายการตลาด)
+# ==========================================
 @login_required
 def marketing_dashboard(request):
     today = timezone.localtime(timezone.now()).date()
 
-    # 1. KPI Cards (จำลองตัวเลข)
-    # Marketing Manager ดูภาพรวม
-    ad_budget_used = 15000  # งบที่ใช้ไปเดือนนี้
-    total_leads = 350       # ลูกค้าที่ทักมาทั้งหมด
-    conversion_rate = 12.5  # % ปิดการขายได้
-    roi_percent = 320       # ผลตอบแทนการลงทุน (ROI)
+    # Mock Data
+    ad_budget_used = 15000
+    total_leads = 350
+    conversion_rate = 12.5
+    roi_percent = 320
 
-    # 2. กราฟ Lead Trend (Digital Specialist ดู)
-    # สถิติลูกค้าทักย้อนหลัง 7 วัน
     lead_labels = [(today - timedelta(days=i)).strftime('%d/%m') for i in range(6, -1, -1)]
-    lead_data = [45, 50, 38, 60, 55, 42, 60] # ข้อมูลสมมติ
+    lead_data = [45, 50, 38, 60, 55, 42, 60]
 
-    # 3. สัดส่วนช่องทาง (Channel Mix)
     channel_labels = ['Facebook', 'TikTok', 'Google', 'LINE OA', 'Walk-in']
     channel_data = [50, 25, 10, 10, 5]
 
-    # 4. แคมเปญที่กำลังรันอยู่ (Active Campaigns)
-    # Content Creator & Ads Specialist ดู
     active_campaigns = [
         {'name': '🔥 Promotion 10.10 ลดจัดหนัก', 'platform': 'Facebook', 'status': 'Running', 'budget': 5000, 'leads': 120, 'cpl': 41.6},
         {'name': '🎥 คลิปไวรัล: เบื้องหลังการผลิต', 'platform': 'TikTok', 'status': 'Running', 'budget': 2000, 'leads': 85, 'cpl': 23.5},
         {'name': '🔍 Search: รับผลิตสินค้า OEM', 'platform': 'Google', 'status': 'Learning', 'budget': 3000, 'leads': 15, 'cpl': 200.0},
     ]
 
-    # 5. กิจกรรมล่าสุด (Admin ดู)
     recent_activities = [
         {'time': '10:30', 'icon': 'fa-comment-dots', 'title': 'Inbox ใหม่ (FB)', 'detail': 'คุณสมชาย สอบถามราคาส่ง'},
         {'time': '10:15', 'icon': 'fa-thumbs-up', 'title': 'ยอดไลก์พุ่ง!', 'detail': 'โพสต์ "กาแฟลาเต้" ถึง 1,000 ไลก์'},
@@ -985,3 +901,101 @@ def marketing_dashboard(request):
         'recent_activities': recent_activities,
     }
     return render(request, 'employees/marketing_dashboard.html', context)
+
+# ==========================================
+# 💰 13. Accounting Dashboard (ฝ่ายบัญชี)
+# ==========================================
+@login_required
+def accounting_dashboard(request):
+    today = timezone.localtime(timezone.now()).date()
+
+    # Mock Data
+    cash_on_hand = 1500000
+    cash_in_month = 450000
+    cash_out_month = 280000
+    net_profit = cash_in_month - cash_out_month
+    total_ar = 320000
+    total_ap = 180000
+
+    chart_labels = ['ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.', 'ม.ค.']
+    income_data = [300000, 350000, 320000, 400000, 420000, 450000]
+    expense_data = [200000, 220000, 210000, 250000, 260000, 280000]
+
+    recent_invoices = [
+        {'no': 'INV-2601001', 'customer': 'บจก. กาแฟดี', 'amount': 15000, 'due': '2026-01-15', 'status': 'Pending'},
+        {'no': 'INV-2601002', 'customer': 'ร้านป้าสมร', 'amount': 5500, 'due': '2026-01-18', 'status': 'Overdue'},
+    ]
+
+    recent_bills = [
+        {'no': 'PO-2601005', 'supplier': 'โรงคั่วกาแฟหอม', 'amount': 25000, 'due': '2026-01-20', 'status': 'Unpaid'},
+        {'no': 'PO-2601006', 'supplier': 'Office Mate', 'amount': 3200, 'due': '2026-01-22', 'status': 'Unpaid'},
+    ]
+
+    context = {
+        'today': today,
+        'cash_on_hand': "{:,.2f}".format(cash_on_hand),
+        'net_profit': "{:,.2f}".format(net_profit),
+        'total_ar': "{:,.2f}".format(total_ar),
+        'total_ap': "{:,.2f}".format(total_ap),
+        'chart_labels': json.dumps(chart_labels),
+        'income_data': json.dumps(income_data),
+        'expense_data': json.dumps(expense_data),
+        'recent_invoices': recent_invoices,
+        'recent_bills': recent_bills,
+    }
+    return render(request, 'employees/accounting_dashboard.html', context)
+
+# ==========================================
+# ⚙️ 14. Operations Dashboard (ฝ่ายปฏิบัติการ)
+# ==========================================
+@login_required
+def operations_dashboard(request):
+    today = timezone.localtime(timezone.now()).date()
+
+    # --- 1. Production Overview (ภาพรวมการผลิต) ---
+    active_jobs = ProductionOrder.objects.filter(status__in=['PENDING', 'IN_PROGRESS']).count()
+    completed_today = ProductionOrder.objects.filter(status='COMPLETED', updated_at__date=today).count()
+
+    # คำนวณ % ความสำเร็จ (สมมติเป้าหมาย 10 งานต่อวัน)
+    daily_target = 10
+    production_progress = min(int((completed_today / daily_target) * 100), 100)
+
+    # --- 2. Inventory Health (สุขภาพคลังสินค้า) ---
+    total_stock_value = Product.objects.aggregate(Sum('stock')) # แก้ขัด: ใช้ stock รวมแทนมูลค่าถ้ายังไม่ได้คำนวณซับซ้อน
+    # คำนวณมูลค่ารวมจริง
+    all_products = Product.objects.all()
+    inventory_value = sum(p.stock * p.price for p in all_products)
+    low_stock_items = Product.objects.filter(stock__lte=10).count()
+
+    # --- 3. Supply Chain (จัดซื้อ) ---
+    pending_po_count = PurchaseOrder.objects.filter(status='PENDING').count()
+
+    # --- 4. Quality Control (QC) - Mock Data ---
+    # ในอนาคตต้องสร้างตารางเก็บ Defect จริง
+    qc_stats = {
+        'pass_rate': 98.5,
+        'defect_count': 3,
+        'last_incident': 'รอยขีดข่วน (Job-6812001)'
+    }
+
+    # --- 5. Maintenance (ซ่อมบำรุง) - Mock Data ---
+    # ในอนาคตต้องเชื่อมกับ IoT หรือตารางซ่อมบำรุง
+    machines = [
+        {'name': 'CNC-01', 'status': 'Running', 'uptime': '99%'},
+        {'name': 'CNC-02', 'status': 'Maintenance', 'uptime': '85%'}, # เครื่องนี้เสีย
+        {'name': 'Assembly-A', 'status': 'Running', 'uptime': '100%'},
+    ]
+
+    context = {
+        'today': today,
+        'active_jobs': active_jobs,
+        'completed_today': completed_today,
+        'daily_target': daily_target,
+        'production_progress': production_progress,
+        'inventory_value': "{:,.2f}".format(inventory_value),
+        'low_stock_items': low_stock_items,
+        'pending_po_count': pending_po_count,
+        'qc_stats': qc_stats,
+        'machines': machines,
+    }
+    return render(request, 'employees/operations_dashboard.html', context)
