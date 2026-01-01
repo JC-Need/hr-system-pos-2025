@@ -35,19 +35,33 @@
                 <ul class="navbar-nav w-100 align-items-center">
 
                     {% if user.is_authenticated %}
-                        
-                        {% if request.user.is_superuser or request.user.username == 'jcneed1975' or request.resolver_match.url_name == 'employee_detail' %}
-                            
-                            {% if request.resolver_match.url_name != 'dashboard' %}
-                                <li class="nav-item">
-                                    <a href="{% url 'dashboard' %}" class="btn btn-sm btn-success rounded-pill fw-bold shadow-sm ms-3 text-white">
-                                        <i class="fas fa-home me-1"></i> กลับหน้าหลัก (Dashboard)
-                                    </a>
-                                </li>
-                            {% endif %}
 
-                        {% endif %}
+                        {% block navbar_actions %}
 
+                            {% with url_name=request.resolver_match.url_name %}
+
+                                {% if url_name != 'dashboard' %}
+
+                                    {% if request.user.is_superuser or request.user.username == 'jcneed1975' %}
+                                        <li class="nav-item ms-3">
+                                             <a href="{% url 'dashboard' %}" class="btn btn-success btn-sm text-white fw-bold shadow-sm rounded-pill d-inline-flex align-items-center px-3 py-2">
+                                                <i class="fas fa-home me-2"></i> <span>กลับหน้าหลัก (Dashboard)</span>
+                                             </a>
+                                        </li>
+
+                                    {% elif url_name != 'sales_dashboard' and url_name != 'hr_dashboard' and url_name != 'production_dept_dashboard' and url_name != 'inventory_dashboard' and url_name != 'purchasing_dashboard' and url_name != 'marketing_dashboard' and url_name != 'accounting_dashboard' and url_name != 'operations_dashboard' %}
+                                        <li class="nav-item ms-3">
+                                             <a href="{% url 'dashboard' %}" class="btn btn-success btn-sm text-white fw-bold shadow-sm rounded-pill d-inline-flex align-items-center px-3 py-2">
+                                                <i class="fas fa-home me-2"></i> <span>กลับหน้าหลัก (Dashboard)</span>
+                                             </a>
+                                        </li>
+                                    {% endif %}
+
+                                {% endif %}
+
+                            {% endwith %}
+
+                        {% endblock %}
                         <li class="nav-item me-auto"></li>
 
                         <li class="nav-item me-3">
@@ -57,9 +71,12 @@
                         </li>
 
                         <li class="nav-item">
-                            <a class="btn btn-danger btn-sm px-3 btn-nav shadow-sm" href="{% url 'logout' %}">
-                                <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
-                            </a>
+                            <form action="{% url 'logout' %}" method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger btn-sm fw-bold rounded-pill shadow-sm d-inline-flex align-items-center px-3 py-2">
+                                    <i class="fas fa-sign-out-alt me-2"></i> <span>ออกจากระบบ</span>
+                                </button>
+                            </form>
                         </li>
                     {% endif %}
                 </ul>

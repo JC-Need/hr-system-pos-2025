@@ -1,0 +1,61 @@
+{% extends 'employees/base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice"></i> สร้างใบเสนอราคาใหม่ (Create Quotation)</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">วันที่เอกสาร</label>
+                                {{ form.date }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">ยืนยันราคาถึงวันที่</label>
+                                {{ form.valid_until }}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">ชื่อลูกค้า / บริษัท</label>
+                            {{ form.customer_name }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">ที่อยู่</label>
+                            {{ form.customer_address }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">เลขผู้เสียภาษี (ถ้ามี)</label>
+                            {{ form.customer_tax_id }}
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">หมายเหตุ</label>
+                            {{ form.note }}
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'quotation_list' %}" class="btn btn-secondary">ยกเลิก</a>
+                            <button type="submit" class="btn btn-success px-4"><i class="fas fa-save me-1"></i> บันทึกและไปต่อ</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        flatpickr(".datepicker", {
+            dateFormat: "d/m/Y",  // 👈 บังคับ format เป็น วัน/เดือน/ปี
+            allowInput: true,     // อนุญาตให้พิมพ์เองได้ด้วย
+            // defaultDate: "today" // (ถ้าต้องการให้ขึ้นวันนี้เสมอ ให้เอาคอมเมนต์ออก)
+        });
+    });
+</script>
+{% endblock %}
