@@ -8,18 +8,21 @@ class CustomerForm(forms.ModelForm):
         widgets = {
             'note': forms.Textarea(attrs={'rows': 3}),
             'zip_code': forms.TextInput(attrs={'id': 'input_zipcode', 'class': 'form-control'}),
-            
-            # ✅ เพิ่มส่วนนี้: ตั้งค่าช่องเบอร์โทรศัพท์
             'phone': forms.TextInput(attrs={
-                'id': 'input_phone',          # กำหนด ID ให้ Script เรียกใช้
+                'id': 'input_phone',
                 'class': 'form-control',
-                'placeholder': '0xx-xxx-xxxx', # แสดงตัวอย่างจางๆ
-                'maxlength': '12',            # จำกัดความยาว (10 ตัวเลข + 2 ขีด)
-                'pattern': '[0-9]{3}-[0-9]{3}-[0-9]{4}', # บังคับรูปแบบ (Validation)
-                'title': 'กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก (0xx-xxx-xxxx)'
+                'placeholder': '0xx-xxx-xxxx',
+                'maxlength': '12'
+            }),
+            # ✅ เพิ่มส่วนนี้: ช่อง Location
+            'location': forms.TextInput(attrs={
+                'id': 'input_location',
+                'class': 'form-control',
+                'placeholder': 'เช่น 13.7563, 100.5018 หรือ ลิงก์ Google Maps'
             }),
         }
 
+    # ... (ส่วน __init__ เหมือนเดิม) ...
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields:

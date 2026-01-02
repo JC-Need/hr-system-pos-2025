@@ -6,26 +6,27 @@ class Customer(models.Model):
     name = models.CharField(max_length=200, verbose_name="ชื่อลูกค้า / บริษัท")
     branch = models.CharField(max_length=100, default="สำนักงานใหญ่", blank=True, verbose_name="สาขา")
     tax_id = models.CharField(max_length=20, blank=True, null=True, verbose_name="เลขผู้เสียภาษี")
-    
+
     # --- การติดต่อ ---
     contact_person = models.CharField(max_length=100, blank=True, null=True, verbose_name="ชื่อผู้ติดต่อ")
     phone = models.CharField(max_length=50, blank=True, null=True, verbose_name="เบอร์โทรศัพท์")
     email = models.EmailField(blank=True, null=True, verbose_name="อีเมล")
     line_id = models.CharField(max_length=50, blank=True, null=True, verbose_name="Line ID")
-    
+
     # --- ที่อยู่ (แยกส่วนเพื่อความละเอียด) ---
     address = models.CharField(max_length=255, verbose_name="ที่อยู่ (เลขที่/หมู่บ้าน/ถนน)")
     sub_district = models.CharField(max_length=100, blank=True, null=True, verbose_name="ตำบล/แขวง")
     district = models.CharField(max_length=100, blank=True, null=True, verbose_name="อำเภอ/เขต")
     province = models.CharField(max_length=100, blank=True, null=True, verbose_name="จังหวัด")
     zip_code = models.CharField(max_length=10, blank=True, null=True, verbose_name="รหัสไปรษณีย์")
-    
+    location = models.CharField(max_length=255, blank=True, null=True, verbose_name="พิกัด GPS / Google Maps Link")
+
     # --- อื่นๆ ---
     credit_limit = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="วงเงินเครดิต")
     credit_term = models.IntegerField(default=0, verbose_name="เครดิต (วัน)")
     note = models.TextField(blank=True, null=True, verbose_name="หมายเหตุ")
     is_active = models.BooleanField(default=True, verbose_name="สถานะใช้งาน")
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

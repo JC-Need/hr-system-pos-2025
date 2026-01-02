@@ -4,10 +4,13 @@ from django.contrib import messages
 from django.db.models import Q
 from .models import Customer
 from .forms import CustomerForm
+import datetime
 
 @login_required
 def customer_list(request):
-    query = request.GET.get('q')
+    # ✅ แก้ไข 1: รับค่าชื่อ 'search' ให้ตรงกับหน้าจอ HTML (เดิมเป็น 'q')
+    query = request.GET.get('search') 
+    
     if query:
         # ค้นหาจาก ชื่อ, รหัส, หรือ เบอร์โทร
         customers = Customer.objects.filter(
@@ -30,7 +33,6 @@ def customer_create(request):
             return redirect('customer_list')
     else:
         # สร้างรหัสลูกค้าอัตโนมัติแบบง่ายๆ (CUS-YYMM-XXX)
-        import datetime
         now = datetime.datetime.now()
         prefix = f"CUS-{now.strftime('%y%m')}"
         last = Customer.objects.filter(code__startswith=prefix).last()
@@ -47,8 +49,9 @@ def customer_create(request):
 
     return render(request, 'customers/customer_form.html', {'form': form, 'title': 'เพิ่มลูกค้าใหม่'})
 
+# ✅ แก้ไข 2: เปลี่ยนชื่อฟังก์ชันจาก customer_update เป็น customer_edit ให้ตรงกับ urls.py
 @login_required
-def customer_update(request, pk):
+def customer_edit(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     if request.method == 'POST':
         form = CustomerForm(request.POST, instance=customer)

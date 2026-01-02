@@ -3,98 +3,162 @@
 {% block content %}
 <div class="container-fluid py-4">
     <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 bg-primary text-white d-flex justify-content-between align-items-center">
-                    <h6 class="m-0 font-weight-bold">{{ title }}</h6>
-                    <a href="{% url 'customer_list' %}" class="btn btn-sm btn-light text-primary"><i class="fas fa-arrow-left"></i> กลับ</a>
+        <div class="col-xl-8 col-lg-10">
+            <div class="card shadow-lg border-0">
+
+                <div class="card-header py-3 bg-gradient-primary d-flex justify-content-between align-items-center" style="background-color: #4e73df; color: white;">
+                    <h6 class="m-0 font-weight-bold" style="font-size: 1.2rem;">
+                        <i class="fas fa-user-plus mr-2"></i> {{ title }}
+                    </h6>
+                    <a href="{% url 'customer_list' %}" class="btn btn-light btn-sm shadow-sm text-primary font-weight-bold">
+                        <i class="fas fa-chevron-left"></i> กลับหน้ารายการ
+                    </a>
                 </div>
-                <div class="card-body">
+
+                <div class="card-body p-4">
                     <form method="POST">
+                        {% if form.errors %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <h6 class="alert-heading font-weight-bold"><i class="fas fa-exclamation-triangle"></i> พบข้อผิดพลาดในการบันทึก:</h6>
+                                <ul class="mb-0 pl-3">
+                                    {% for field in form %}
+                                        {% for error in field.errors %}
+                                            <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                                        {% endfor %}
+                                    {% endfor %}
+                                    {% for error in form.non_field_errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                        {% endif %}
                         {% csrf_token %}
 
+                        <input type="hidden" name="credit_limit" value="{{ form.instance.credit_limit|default:'0' }}">
+                        <input type="hidden" name="credit_term" value="{{ form.instance.credit_term|default:'0' }}">
+
+                        <h6 class="text-primary font-weight-bold text-uppercase small mb-3">
+                            <i class="fas fa-id-card"></i> ข้อมูลบริษัท / ร้านค้า
+                        </h6>
                         <div class="form-row">
                             <div class="col-md-4 mb-3">
-                                <label>รหัสลูกค้า</label>
+                                <label class="small font-weight-bold text-muted">รหัสลูกค้า</label>
                                 {{ form.code }}
                             </div>
                             <div class="col-md-8 mb-3">
-                                <label>ชื่อลูกค้า / บริษัท <span class="text-danger">*</span></label>
+                                <label class="small font-weight-bold text-muted">ชื่อลูกค้า / บริษัท <span class="text-danger">*</span></label>
                                 {{ form.name }}
                             </div>
                         </div>
-
                         <div class="form-row">
                             <div class="col-md-6 mb-3">
-                                <label>เลขผู้เสียภาษี</label>
+                                <label class="small font-weight-bold text-muted">เลขผู้เสียภาษี</label>
                                 {{ form.tax_id }}
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label>สาขา</label>
+                                <label class="small font-weight-bold text-muted">สาขา</label>
                                 {{ form.branch }}
                             </div>
                         </div>
 
-                        <hr>
-                        <h6 class="text-muted mb-3">ข้อมูลการติดต่อ</h6>
+                        <hr class="my-4 border-light">
 
+                        <h6 class="text-primary font-weight-bold text-uppercase small mb-3">
+                            <i class="fas fa-phone-square-alt"></i> ข้อมูลการติดต่อ
+                        </h6>
                         <div class="form-row">
                             <div class="col-md-6 mb-3">
-                                <label>ชื่อผู้ติดต่อ</label>
-                                {{ form.contact_person }}
+                                <label class="small font-weight-bold text-muted">ชื่อผู้ติดต่อ</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text bg-white"><i class="fas fa-user text-gray-400"></i></span>
+                                    </div>
+                                    {{ form.contact_person }}
+                                </div>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label>เบอร์โทรศัพท์</label>
-                                {{ form.phone }}
+                                <label class="small font-weight-bold text-muted">เบอร์โทรศัพท์</label>
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text bg-white"><i class="fas fa-phone text-gray-400"></i></span>
+                                    </div>
+                                    {{ form.phone }}
+                                </div>
                             </div>
                         </div>
 
-                        <div class="form-group">
-                            <label>ที่อยู่ (เลขที่/ถนน)</label>
-                            {{ form.address }}
-                        </div>
+                        <hr class="my-4 border-light">
 
-                        <div class="p-3 bg-light rounded mb-3">
+                        <div class="p-3 bg-light rounded border mb-4">
+                            <h6 class="text-primary font-weight-bold text-uppercase small mb-3">
+                                <i class="fas fa-shipping-fast"></i> ที่อยู่สำหรับจัดส่ง
+                            </h6>
+
+                            <div class="form-group">
+                                <label class="small font-weight-bold text-muted">ที่อยู่ (เลขที่/หมู่บ้าน/ถนน)</label>
+                                {{ form.address }}
+                            </div>
+
                             <div class="form-row">
                                 <div class="col-md-6 mb-3">
-                                    <label>จังหวัด</label>
+                                    <label class="small font-weight-bold text-muted">จังหวัด</label>
                                     <select name="province" id="select_province" class="form-control" data-default="{{ form.instance.province|default:'' }}">
                                         <option value="">-- เลือกจังหวัด --</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label>อำเภอ/เขต</label>
+                                    <label class="small font-weight-bold text-muted">อำเภอ/เขต</label>
                                     <select name="district" id="select_amphure" class="form-control" data-default="{{ form.instance.district|default:'' }}">
                                         <option value="">-- เลือกอำเภอ --</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label>ตำบล/แขวง</label>
+                                    <label class="small font-weight-bold text-muted">ตำบล/แขวง</label>
                                     <select name="sub_district" id="select_tambon" class="form-control" data-default="{{ form.instance.sub_district|default:'' }}">
                                         <option value="">-- เลือกตำบล --</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label>รหัสไปรษณีย์</label>
+                                    <label class="small font-weight-bold text-muted">รหัสไปรษณีย์</label>
                                     {{ form.zip_code }}
+                                </div>
+                            </div>
+
+                            <div class="form-group mt-2">
+                                <label class="small font-weight-bold text-muted">📍 พิกัด GPS / Google Maps Link</label>
+                                <div class="input-group">
+                                    {{ form.location }}
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-info" onclick="getLocation()" title="ดึงพิกัดปัจจุบัน">
+                                            <i class="fas fa-crosshairs"></i> ดึงพิกัด
+                                        </button>
+                                        <a href="#" id="link_map" target="_blank" class="btn btn-secondary" title="เปิดดูแผนที่">
+                                            <i class="fas fa-map-marked-alt"></i>
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <hr>
                         <div class="form-group">
-                            <label>หมายเหตุ</label>
+                            <label class="small font-weight-bold text-muted">หมายเหตุเพิ่มเติม</label>
                             {{ form.note }}
                         </div>
 
-                        <div class="form-check mb-4">
-                            {{ form.is_active }}
-                            <label class="form-check-label ml-1">เปิดใช้งาน (Active)</label>
+                        <div class="d-flex align-items-center justify-content-between mt-4 p-3 bg-white border rounded shadow-sm">
+                            <div class="custom-control custom-checkbox">
+                                {{ form.is_active }}
+                                <label class="form-check-label ml-2 text-dark font-weight-bold" for="id_is_active">สถานะใช้งาน (Active)</label>
+                            </div>
+
+                            <button type="submit" class="btn btn-success btn-lg shadow px-5">
+                                <i class="fas fa-save mr-2"></i> บันทึกข้อมูล
+                            </button>
                         </div>
 
-                        <button type="submit" class="btn btn-success btn-block shadow-sm">
-                            <i class="fas fa-save"></i> บันทึกข้อมูล
-                        </button>
                     </form>
                 </div>
             </div>
@@ -103,32 +167,50 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    // 1. ฟังก์ชันดึง GPS
+    function getLocation() {
+        const locInput = document.getElementById('input_location');
+        if (navigator.geolocation) {
+            locInput.placeholder = "กำลังค้นหาพิกัด...";
+            navigator.geolocation.getCurrentPosition(showPosition, showError);
+        } else {
+            alert("Browser นี้ไม่รองรับ Geolocation ครับ");
+        }
+    }
 
-        // =========================================================
-        // 📞 1. ส่วนจัดการเบอร์โทรศัพท์ (Auto Format Phone)
-        // =========================================================
+    function showPosition(position) {
+        const lat = position.coords.latitude;
+        const long = position.coords.longitude;
+        // สร้าง Link Google Maps
+        const link = `http://googleusercontent.com/maps.google.com/?q=${lat},${long}`;
+        document.getElementById('input_location').value = link;
+        document.getElementById('link_map').href = link;
+    }
+
+    function showError(error) {
+        alert("ไม่สามารถดึงพิกัดได้: " + error.message);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // อัปเดตปุ่ม Map Link ถ้ามีข้อมูลเดิม
+        const existingLoc = document.getElementById('input_location').value;
+        if(existingLoc) { document.getElementById('link_map').href = existingLoc; }
+
+        // 2. จัดรูปแบบเบอร์โทรศัพท์ (0xx-xxx-xxxx)
         const phoneInput = document.getElementById('input_phone');
         if (phoneInput) {
             phoneInput.addEventListener('input', function (e) {
-                // ลบตัวอักษรแปลกปลอม (ให้เหลือแต่ตัวเลข)
-                let x = e.target.value.replace(/\D/g, '')
-                    .match(/(\d{0,3})(\d{0,3})(\d{0,4})/);
-
-                // จัดรูปแบบเป็น xxx-xxx-xxxx
+                let x = e.target.value.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,4})/);
                 e.target.value = !x[2] ? x[1] : x[1] + '-' + x[2] + (x[3] ? '-' + x[3] : '');
             });
         }
 
-        // =========================================================
-        // 🏠 2. ส่วนจัดการที่อยู่ (Address Auto-fill)
-        // =========================================================
+        // 3. ระบบเลือกที่อยู่ (จังหวัด -> อำเภอ -> ตำบล)
         const provinceSelect = document.getElementById('select_province');
         const amphureSelect = document.getElementById('select_amphure');
         const tambonSelect = document.getElementById('select_tambon');
         const zipcodeInput = document.getElementById('input_zipcode');
 
-        // 2.1 โหลดข้อมูลจังหวัดเมื่อเปิดหน้าเว็บ
         fetch("{% url 'get_provinces' %}")
             .then(response => response.json())
             .then(data => {
@@ -139,8 +221,6 @@
                     option.textContent = item.name_th;
                     provinceSelect.appendChild(option);
                 });
-
-                // (ถ้าเป็นการแก้ไข) เลือกค่าจังหวัดเดิมกลับมา
                 const defaultProv = provinceSelect.dataset.default;
                 if (defaultProv && defaultProv !== 'None' && defaultProv !== '') {
                     provinceSelect.value = defaultProv;
@@ -148,11 +228,9 @@
                 }
             });
 
-        // 2.2 เมื่อเลือกจังหวัด -> โหลดอำเภอ
         provinceSelect.addEventListener('change', function() {
             const pName = this.value;
             amphureSelect.innerHTML = '<option value="">...</option>';
-
             if (pName) {
                 fetch(`{% url 'get_amphures' %}?province=${pName}`)
                     .then(response => response.json())
@@ -164,7 +242,6 @@
                             option.textContent = item.name_th;
                             amphureSelect.appendChild(option);
                         });
-
                         const defaultAmp = amphureSelect.dataset.default;
                         if (defaultAmp && defaultAmp !== 'None' && defaultAmp !== '') {
                             amphureSelect.value = defaultAmp;
@@ -172,17 +249,13 @@
                             amphureSelect.dispatchEvent(new Event('change'));
                         }
                     });
-            } else {
-                amphureSelect.innerHTML = '<option value="">-- เลือกอำเภอ --</option>';
             }
         });
 
-        // 2.3 เมื่อเลือกอำเภอ -> โหลดตำบล
         amphureSelect.addEventListener('change', function() {
             const aName = this.value;
             const pName = provinceSelect.value;
             tambonSelect.innerHTML = '<option value="">...</option>';
-
             if (aName) {
                 fetch(`{% url 'get_tambons' %}?name=${aName}&province=${pName}`)
                     .then(response => response.json())
@@ -195,7 +268,6 @@
                             option.dataset.zip = item.zip_code;
                             tambonSelect.appendChild(option);
                         });
-
                         const defaultTam = tambonSelect.dataset.default;
                         if (defaultTam && defaultTam !== 'None' && defaultTam !== '') {
                             tambonSelect.value = defaultTam;
@@ -206,7 +278,6 @@
             }
         });
 
-        // 2.4 เมื่อเลือกตำบล -> เติมรหัสไปรษณีย์
         tambonSelect.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
             if (selectedOption.dataset.zip) {

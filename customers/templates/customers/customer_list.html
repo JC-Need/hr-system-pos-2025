@@ -1,63 +1,85 @@
 {% extends 'employees/base.html' %}
-{% load humanize %}
 
 {% block content %}
 <div class="container-fluid py-4">
+
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="text-gray-800"><i class="fas fa-users text-primary"></i> ฐานข้อมูลลูกค้า</h3>
-        <a href="{% url 'customer_create' %}" class="btn btn-primary shadow-sm">
-            <i class="fas fa-plus"></i> เพิ่มลูกค้าใหม่
+        <h3 class="h3 mb-0 text-gray-800 font-weight-bold"><i class="fas fa-users text-primary"></i> ฐานข้อมูลลูกค้า</h3>
+        <a href="{% url 'customer_create' %}" class="btn btn-primary shadow-sm font-weight-bold">
+            <i class="fas fa-plus fa-sm text-white-50"></i> เพิ่มลูกค้าใหม่
         </a>
     </div>
 
-    <div class="card shadow mb-4">
-        <div class="card-body">
+    <div class="card shadow mb-4 border-0">
+        <div class="card-body bg-light rounded">
             <form method="GET" class="form-inline">
-                <input type="text" name="q" value="{{ query|default:'' }}" class="form-control mr-2 w-50" placeholder="🔍 ค้นหาชื่อ, รหัส หรือเบอร์โทร...">
-                <button type="submit" class="btn btn-secondary"><i class="fas fa-search"></i> ค้นหา</button>
-                {% if query %}
-                    <a href="{% url 'customer_list' %}" class="btn btn-link text-danger ml-2">ล้างค่า</a>
-                {% endif %}
+                <div class="input-group w-100">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text bg-white border-0"><i class="fas fa-search text-gray-400"></i></span>
+                    </div>
+                    <input type="text" name="search" class="form-control border-0 bg-white" placeholder="ค้นหาชื่อ, รหัส หรือเบอร์โทร..." value="{{ request.GET.search|default:'' }}">
+                    <div class="input-group-append">
+                        <button class="btn btn-secondary" type="submit">ค้นหา</button>
+                    </div>
+                </div>
             </form>
         </div>
     </div>
 
-    <div class="card shadow">
+    <div class="card shadow mb-4">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="bg-light">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-dark">
                         <tr>
-                            <th>รหัส</th>
-                            <th>ชื่อลูกค้า / บริษัท</th>
-                            <th>เบอร์โทร</th>
-                            <th>จังหวัด</th>
-                            <th>สถานะ</th>
-                            <th class="text-center">จัดการ</th>
+                            <th class="py-3 pl-4">รหัส</th>
+                            <th class="py-3">ชื่อลูกค้า / บริษัท</th>
+                            <th class="py-3">เบอร์โทร</th>
+                            <th class="py-3">จังหวัด</th>
+                            <th class="py-3 text-center">สถานะ</th>
+                            <th class="py-3 text-center" style="width: 150px;">จัดการ</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for c in customers %}
+                        {% for customer in customers %}
                         <tr>
-                            <td><span class="badge badge-light border">{{ c.code }}</span></td>
-                            <td class="font-weight-bold text-primary">{{ c.name }}</td>
-                            <td>{{ c.phone|default:"-" }}</td>
-                            <td>{{ c.province|default:"-" }}</td>
-                            <td>
-                                {% if c.is_active %}
-                                    <span class="badge badge-success">ใช้งาน</span>
+                            <td class="pl-4 align-middle">
+                                <span class="font-weight-bold text-dark bg-light px-2 py-1 rounded border">
+                                    {{ customer.code }}
+                                </span>
+                            </td>
+                            
+                            <td class="align-middle font-weight-bold text-primary">{{ customer.name }}</td>
+                            <td class="align-middle text-muted">{{ customer.phone|default:"-" }}</td>
+                            <td class="align-middle text-muted">{{ customer.province|default:"-" }}</td>
+                            
+                            <td class="align-middle text-center">
+                                {% if customer.is_active %}
+                                    <span class="font-weight-bold text-success" style="font-size: 1rem;">
+                                        <i class="fas fa-check-circle"></i> ใช้งาน
+                                    </span>
                                 {% else %}
-                                    <span class="badge badge-secondary">ไม่ใช้งาน</span>
+                                    <span class="font-weight-bold text-danger" style="font-size: 1rem;">
+                                        <i class="fas fa-times-circle"></i> ปิดใช้งาน
+                                    </span>
                                 {% endif %}
                             </td>
-                            <td class="text-center">
-                                <a href="{% url 'customer_update' c.pk %}" class="btn btn-sm btn-warning"><i class="fas fa-pen"></i></a>
-                                <a href="{% url 'customer_delete' c.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('ยืนยันลบลูกค้าคนนี้?');"><i class="fas fa-trash"></i></a>
+
+                            <td class="align-middle text-center">
+                                <a href="{% url 'customer_edit' customer.id %}" class="btn btn-warning btn-sm shadow-sm" title="แก้ไข">
+                                    <i class="fas fa-pen"></i>
+                                </a>
+                                <a href="{% url 'customer_delete' customer.id %}" class="btn btn-danger btn-sm shadow-sm ml-1" onclick="return confirm('ยืนยันลบข้อมูลลูกค้า {{ customer.name }}?');" title="ลบ">
+                                    <i class="fas fa-trash"></i>
+                                </a>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">ไม่พบข้อมูลลูกค้า</td>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="fas fa-folder-open fa-3x mb-3 text-gray-300"></i><br>
+                                ไม่พบข้อมูลลูกค้า
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -66,4 +88,22 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // ตั้งเวลา 300,000 มิลลิวินาที = 5 นาที
+        setTimeout(function() {
+            let alerts = document.querySelectorAll('.alert'); // ค้นหา Alert ทั้งหมดในหน้าจอ
+            alerts.forEach(function(alert) {
+                let closeBtn = alert.querySelector('.close');
+                if (closeBtn) {
+                    closeBtn.click(); // สั่งกดปุ่มปิด
+                } else {
+                    alert.style.display = 'none'; // ถ้าไม่มีปุ่มก็ซ่อนเลย
+                }
+            });
+        }, 5000); 
+    });
+</script>
+
 {% endblock %}
