@@ -5,10 +5,10 @@ from django.utils import timezone
 from datetime import timedelta
 import datetime
 from decimal import Decimal
-from django.http import JsonResponse  # ✅ 1. ต้องมีตัวนี้เพื่อส่งข้อมูลกลับ
+from django.http import JsonResponse
 
 from employees.models import Product, Employee, Category
-# ✅ 2. บรรทัดนี้สำคัญที่สุด! ต้องดึงตารางที่อยู่มาใช้
+# ดึงตารางที่อยู่มาใช้
 from .models import Quotation, QuotationItem, Customer, Province, Amphure, Tambon
 from .forms import QuotationForm
 
@@ -32,12 +32,15 @@ def quotation_create(request):
 
             now = datetime.datetime.now()
             prefix = f"QT-{now.strftime('%y%m')}"
-            last = Quotation.objects.filter(qt_number__startswith=prefix).order_by('qt_number').last()
+            last = Quotation.objects.filter(quotation_no__startswith=prefix).order_by('quotation_no').last()
             if last:
-                seq = int(last.qt_number.split('-')[-1]) + 1
+                try:
+                    seq = int(last.quotation_no.split('-')[-1]) + 1
+                except:
+                    seq = 1
             else:
                 seq = 1
-            qt.qt_number = f"{prefix}-{seq:03d}"
+            qt.quotation_no = f"{prefix}-{seq:03d}"
 
             qt.save()
             return redirect('quotation_edit', qt_id=qt.id)
@@ -54,6 +57,8 @@ def quotation_edit(request, qt_id):
     products = Product.objects.filter(is_active=True)
     categories = Category.objects.all()
     customers = Customer.objects.all()
+
+    item_total = sum(i.total_price for i in qt.items.all())
 
     if request.method == 'POST':
         if 'select_customer' in request.POST:
@@ -74,12 +79,15 @@ def quotation_edit(request, qt_id):
 
         elif 'add_item' in request.POST:
             try:
-                p = Product.objects.get(pk=request.POST.get('product'))
-                qty = int(request.POST.get('quantity'))
-                price = Decimal(request.POST.get('price'))
-                QuotationItem.objects.create(quotation=qt, product=p, quantity=qty, unit_price=price)
-                calculate_totals(qt)
-                messages.success(request, f"เพิ่ม {p.name} เรียบร้อย")
+                p_id = request.POST.get('product')
+                if p_id:
+                    p = Product.objects.get(pk=p_id)
+                    qty = int(request.POST.get('quantity', 1))
+                    price = Decimal(request.POST.get('price', 0))
+
+                    QuotationItem.objects.create(quotation=qt, product=p, quantity=qty, unit_price=price)
+                    calculate_totals(qt)
+                    messages.success(request, f"เพิ่ม {p.name} เรียบร้อย")
             except Exception as e:
                 messages.error(request, f"เกิดข้อผิดพลาด: {e}")
             return redirect('quotation_edit', qt_id=qt.id)
@@ -93,18 +101,46 @@ def quotation_edit(request, qt_id):
             qt.customer_district = request.POST.get('customer_district')
             qt.customer_province = request.POST.get('customer_province')
             qt.customer_zip = request.POST.get('customer_zip')
+            qt.date = request.POST.get('date')
+            qt.valid_until = request.POST.get('valid_until')
             qt.save()
             messages.success(request, "บันทึกข้อมูลลูกค้าเรียบร้อย")
             return redirect('quotation_edit', qt_id=qt.id)
 
+        # ✅ บันทึกค่าขนส่ง, ส่วนลด และ "หมายเหตุ" (Note)
+        elif 'update_totals' in request.POST:
+            try:
+                discount_str = request.POST.get('discount', '0').replace(',', '')
+                shipping_str = request.POST.get('shipping_cost', '0').replace(',', '')
+
+                qt.discount = Decimal(discount_str or 0)
+                qt.shipping_cost = Decimal(shipping_str or 0)
+
+                # ✅ รับค่าหมายเหตุจากฟอร์ม
+                qt.note = request.POST.get('note', '')
+
+                calculate_totals(qt)
+                messages.success(request, "บันทึกและคำนวณยอดเงินเรียบร้อย")
+            except Exception as e:
+                pass
+
+            return redirect('quotation_edit', qt_id=qt.id)
+
     return render(request, 'sales/quotation_edit.html', {
-        'qt': qt, 'products': products, 'categories': categories, 'customers': customers
+        'qt': qt,
+        'products': products,
+        'categories': categories,
+        'customers': customers,
+        'item_total': item_total
     })
 
 @login_required
 def quotation_detail(request, qt_id):
     qt = get_object_or_404(Quotation, pk=qt_id)
-    return render(request, 'sales/quotation_detail.html', {'qt': qt})
+    # หา CompanyInfo (ถ้ามี) เพื่อส่งไปแสดงโลโก้
+    from employees.models import CompanyInfo
+    company = CompanyInfo.objects.first()
+    return render(request, 'sales/quotation_detail.html', {'qt': qt, 'company': company})
 
 @login_required
 def delete_item(request, item_id):
@@ -116,16 +152,27 @@ def delete_item(request, item_id):
     return redirect('quotation_edit', qt_id=qt.id)
 
 def calculate_totals(qt):
-    total = sum(i.total_price for i in qt.items.all())
-    qt.subtotal = total
-    qt.vat_amount = total * Decimal('0.07')
-    qt.grand_total = total + qt.vat_amount
+    # คำนวณยอดรวมสินค้า
+    item_sum = sum(i.total_price for i in qt.items.all())
+
+    # คำนวณยอดสุทธิ (Grand Total) = (สินค้า + ค่าส่ง) - ส่วนลด
+    # ต้องแปลง shipping_cost/discount เป็น Decimal เสมอ
+    shipping = qt.shipping_cost if qt.shipping_cost else Decimal(0)
+    discount = qt.discount if qt.discount else Decimal(0)
+
+    grand_total = (item_sum + shipping) - discount
+    if grand_total < Decimal(0):
+        grand_total = Decimal(0)
+
+    # ถอด VAT 7% จากยอดสุทธิ
+    qt.subtotal = grand_total / Decimal('1.07')
+    qt.vat_amount = grand_total - qt.subtotal
+    qt.grand_total = grand_total
+
     qt.save()
 
-# ... (โค้ดอื่นๆ ด้านบน) ...
-
 # ========================================================
-# 🔌 ต้องวางส่วนนี้ไว้ล่างสุด และชิดขอบซ้าย ห้ามย่อหน้า!
+# API Views (AJAX)
 # ========================================================
 def get_provinces(request):
     provinces = list(Province.objects.values('id', 'name_th').order_by('name_th'))

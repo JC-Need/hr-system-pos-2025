@@ -1,194 +1,280 @@
-{% extends 'employees/base.html' %}
 {% load humanize %}
+{% load static %}
 
-{% block content %}
-<style>
-    /* 🌿 ธีมสีเขียว Borcelle (Green Minimal) */
-    :root {
-        --theme-color: #2C5F2D;
-        --theme-light: #E8F5E9;
-    }
-    .text-theme { color: var(--theme-color) !important; }
-    .bg-theme { background-color: var(--theme-color) !important; color: white !important; }
-    .bg-theme-light { background-color: var(--theme-light) !important; }
-    .btn-theme { background-color: var(--theme-color); color: white; border: none; }
-    .btn-theme:hover { background-color: #1e4220; color: white; }
-    .border-theme { border-color: var(--theme-color) !important; }
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ใบเสนอราคา {{ qt.quotation_no }}</title>
     
-    /* 📄 จัดหน้ากระดาษ A4 */
-    .a4-paper {
-        background: white;
-        width: 210mm;
-        min-height: 297mm;
-        margin: 0 auto;
-        padding: 30px 40px;
-        position: relative;
-        box-shadow: 0 0 15px rgba(0,0,0,0.1);
-    }
-    
-    @media print {
-        body { background: white; -webkit-print-color-adjust: exact; }
-        .d-print-none { display: none !important; }
-        .container { max-width: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
-        .a4-paper { box-shadow: none; margin: 0; width: 100%; padding: 20px 30px; }
-        .bg-theme { background-color: var(--theme-color) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    }
-</style>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
-<div class="container mt-4 mb-5">
-    
-    <div class="d-flex justify-content-between mb-4 d-print-none">
-        <a href="{% url 'quotation_list' %}" class="btn btn-secondary shadow-sm rounded-pill px-4">
-            <i class="fas fa-arrow-left me-2"></i> กลับหน้ารายการ
-        </a>
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #5a5c69;
+            padding: 20px 0;
+            color: #333;
+        }
         
-        <div>
-            {% if qt.status == 'DRAFT' %}
-            <a href="{% url 'quotation_edit' qt.id %}" class="btn btn-warning text-white shadow-sm rounded-pill px-4 me-2">
-                <i class="fas fa-pen me-2"></i> แก้ไขรายการ
-            </a>
-            {% endif %}
+        .page-a4 {
+            width: 210mm;
+            min-height: 297mm;
+            background: white;
+            margin: 0 auto;
+            /* Padding ด้านล่าง 40mm เพื่อกันพื้นที่ให้ Footer */
+            padding: 15mm 15mm 40mm 15mm; 
+            position: relative;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            box-sizing: border-box;
+            /* Flexbox แนวตั้ง */
+            display: flex;
+            flex-direction: column;
+        }
 
-            <button onclick="window.print()" class="btn btn-theme shadow-sm rounded-pill px-4">
-                <i class="fas fa-print me-2"></i> พิมพ์เอกสาร (A4)
-            </button>
-        </div>
+        /* เส้นตารางสีเขียว (ส่วนหัวตาราง) */
+        .table-custom th {
+            border-top: 2px solid #1cc88a !important;
+            border-bottom: 2px solid #1cc88a !important;
+            background-color: #fff;
+            color: #000;
+            font-weight: 600;
+        }
+        
+        /* ✅ แก้ไข: ลบเส้นขีดคั่นบรรทัดสินค้าออก (border-bottom: none) */
+        .table-custom td {
+            border-bottom: none !important; 
+            vertical-align: top;
+            padding: 10px 8px;
+        }
+        
+        .no-wrap { white-space: nowrap; }
+
+        @media print {
+            @page { size: A4; margin: 0; }
+            body { background: white; padding: 0; }
+            .page-a4 {
+                width: 100%; margin: 0; 
+                padding: 15mm 15mm 40mm 15mm;
+                box-shadow: none; border: none; min-height: 297mm;
+            }
+            .d-print-none { display: none !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container mb-3 d-print-none text-right" style="width: 210mm;">
+        <a href="{% url 'quotation_edit' qt.id %}" class="btn btn-light text-secondary shadow-sm">
+            <i class="fas fa-arrow-left"></i> กลับไปแก้ไข
+        </a>
+        <button onclick="window.print()" class="btn btn-primary shadow-sm ml-2">
+            <i class="fas fa-print"></i> พิมพ์ใบเสนอราคา
+        </button>
     </div>
 
-    <div class="a4-paper">
+    <div class="page-a4">
         
-        <div class="row mb-3 align-items-start">
+        <div class="row mb-2">
             <div class="col-7">
-                <div class="d-flex align-items-center mb-2">
-                    {% if company.logo %}
-                        <img src="{{ company.logo.url }}" alt="Logo" style="height: 50px; margin-right: 12px;">
-                    {% else %}
-                        <div class="bg-theme text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; margin-right: 12px;">
-                            <i class="fas fa-coffee fa-lg"></i>
-                        </div>
-                    {% endif %}
-                    
-                    <div>
-                        <h3 class="fw-bold text-theme m-0 lh-1">{{ company.name_th }}</h3>
-                        {% if company.name_en %}
-                            <small class="text-muted text-uppercase" style="font-size: 0.75rem; letter-spacing: 1px;">{{ company.name_en }}</small>
+                <div class="d-flex align-items-center mb-1">
+                    <div class="mr-3">
+                        {% if company.logo %}
+                            <img src="{{ company.logo.url }}" alt="Logo" style="height: 60px; width: auto; object-fit: contain;">
+                        {% else %}
+                            <div style="width: 50px; height: 50px; background-color: #1cc88a; color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px;">
+                                <i class="fas fa-cube"></i>
+                            </div>
                         {% endif %}
                     </div>
+                    <div>
+                        <h3 class="font-weight-bold m-0" style="color: #1cc88a; line-height: 1.2;">
+                            {{ company.name_th|default:"บริษัท นีด ช็อปปิ้ง จำกัด" }}
+                        </h3>
+                        <div class="small text-secondary text-uppercase" style="letter-spacing: 1px;">
+                            {{ company.name_en|default:"Need Shopping Co., Ltd." }}
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="small text-secondary ps-2 border-start border-3 border-theme" style="font-size: 0.85rem; line-height: 1.4;">
-                    <p class="mb-0">{{ company.address }}</p>
-                    <p class="mb-0">โทร: {{ company.phone }} | Tax ID: {{ company.tax_id }}</p>
-                    {% if company.email %}<p class="mb-0">Email: {{ company.email }}</p>{% endif %}
+
+                <div class="small text-secondary" style="line-height: 1.5;">
+                    {{ company.address|default:"10/10 หมู่ 10 ตำบลบางพระ อำเภอศรีราชา จังหวัดชลบุรี 20110" }}<br>
+                    โทร: {{ company.phone|default:"033 166 699" }} | 
+                    Tax ID: {{ company.tax_id|default:"0205563029342" }}<br>
+                    Email: {{ company.email|default:"needshopping.acc@gmail.com" }}
                 </div>
             </div>
 
-            <div class="col-5 text-end">
-                <h6 class="text-secondary text-uppercase mb-0" style="letter-spacing: 2px; font-size: 0.7rem;">Quotation</h6>
-                <h2 class="fw-bold text-theme mb-2">ใบเสนอราคา</h2>
-                <table class="table table-sm table-borderless small mb-0 float-end" style="width: auto; font-size: 0.85rem;">
+            <div class="col-5 text-right align-self-end">
+                <h1 class="font-weight-bold text-dark mb-0" style="font-size: 2.5rem;">ใบเสนอราคา</h1>
+                <span class="text-muted text-uppercase small" style="letter-spacing: 2px;">Quotation</span>
+                
+                <table class="table table-borderless table-sm mt-1 small text-right float-right" style="width: 100%;">
                     <tr>
-                        <td class="text-end text-muted py-0">เลขที่ (No.):</td>
-                        <td class="text-end fw-bold py-0">{{ qt.qt_number }}</td>
+                        <td class="text-muted p-0">เลขที่ (No.):</td>
+                        <td class="font-weight-bold p-0 text-dark">{{ qt.quotation_no }}</td>
                     </tr>
                     <tr>
-                        <td class="text-end text-muted py-0">วันที่ (Date):</td>
-                        <td class="text-end fw-bold py-0">{{ qt.date|date:"d M Y" }}</td>
+                        <td class="text-muted p-0">วันที่ (Date):</td>
+                        <td class="font-weight-bold p-0 text-dark">{{ qt.date|date:"d/m/Y" }}</td>
                     </tr>
                     <tr>
-                        <td class="text-end text-muted py-0">ยืนยันราคาถึง:</td>
-                        <td class="text-end fw-bold py-0">{{ qt.valid_until|date:"d M Y" }}</td>
+                        <td class="text-muted p-0">ยืนยันราคาถึง:</td>
+                        <td class="font-weight-bold p-0 text-dark">
+                            {% if qt.valid_until %}{{ qt.valid_until|date:"d/m/Y" }}{% else %}-{% endif %}
+                        </td>
                     </tr>
                 </table>
             </div>
         </div>
 
-        <div class="row mb-3">
-            <div class="col-12">
-                <div class="p-2 px-3 bg-theme-light rounded-3 d-flex align-items-center justify-content-between">
-                    <div>
-                        <h6 class="text-theme fw-bold small mb-1">ลูกค้า (Customer): <span class="text-dark fs-6">{{ qt.customer_name }}</span></h6>
-                        <p class="mb-0 small text-muted" style="line-height: 1.2;">{{ qt.customer_address|linebreaksbr }}</p>
+        <div class="p-3 mb-3" style="background-color: #f8f9fc; border-radius: 6px; border-left: 5px solid #1cc88a;">
+            <div class="row">
+                <div class="col-8">
+                    <strong class="text-dark" style="font-size: 1.1em;">ลูกค้า (Customer): {{ qt.customer_name }}</strong><br>
+                    <div class="text-muted small mt-1">
+                        {{ qt.customer_address }} 
+                        {{ qt.customer_sub_district }} 
+                        {{ qt.customer_district }} 
+                        {{ qt.customer_province }} 
+                        {{ qt.customer_zip }}
+                        
+                        {% if qt.customer_phone %}
+                            <br><strong class="text-dark">โทร: {{ qt.customer_phone }}</strong>
+                        {% endif %}
                     </div>
-                    <div class="text-end">
-                         <p class="mb-0 small"><strong>เลขผู้เสียภาษี:</strong> {{ qt.customer_tax_id|default:"-" }}</p>
-                    </div>
+                </div>
+                <div class="col-4 text-right">
+                    <small class="text-muted">เลขผู้เสียภาษี</small><br>
+                    <strong>{{ qt.customer_tax_id|default:"-" }}</strong>
                 </div>
             </div>
         </div>
 
-        <table class="table table-hover mb-4" style="border-bottom: 2px solid var(--theme-color);">
-            <thead class="bg-theme text-white">
+        <table class="table table-custom mb-3 w-100">
+            <thead>
                 <tr>
-                    <th class="py-1 text-center" style="width: 5%;">#</th>
-                    <th class="py-1" style="width: 50%;">รายการสินค้า (Description)</th>
-                    <th class="py-1 text-center" style="width: 10%;">จำนวน</th>
-                    <th class="py-1 text-end" style="width: 15%;">ราคา/หน่วย</th>
-                    <th class="py-1 text-end" style="width: 20%;">รวมเงิน</th>
+                    <th style="width: 8%;" class="text-center">ลำดับ</th>
+                    <th style="width: 50%;">รายการสินค้า (Description)</th>
+                    <th style="width: 10%;" class="text-center">จำนวน</th>
+                    <th style="width: 16%;" class="text-right">ราคา/หน่วย</th>
+                    <th style="width: 16%;" class="text-right">รวมเงิน</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in qt.items.all %}
                 <tr>
-                    <td class="text-center text-muted py-2">{{ forloop.counter }}</td>
-                    <td class="fw-bold text-theme py-2">{{ item.product.name }}</td>
-                    <td class="text-center py-2">{{ item.quantity }}</td>
-                    <td class="text-end py-2">{{ item.unit_price|intcomma }}</td>
-                    <td class="text-end fw-bold py-2">{{ item.total_price|intcomma }}</td>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td>{{ item.product.name }}</td>
+                    <td class="text-center">{{ item.quantity }}</td>
+                    <td class="text-right">{{ item.unit_price|intcomma }}</td>
+                    <td class="text-right font-weight-bold no-wrap">
+                        {{ item.total_price|intcomma }} <span class="text-muted small font-weight-normal">บาท</span>
+                    </td>
                 </tr>
                 {% endfor %}
                 
-                {% if qt.items.count < 8 %}
-                <tr><td colspan="5" style="height: 30px;"></td></tr>
+                {% if qt.items.count < 5 %}
+                    {% for i in "123"|make_list %}
+                    <tr><td class="py-4">&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+                    {% endfor %}
                 {% endif %}
             </tbody>
         </table>
 
-        <div class="row mb-5">
+        <div class="row mt-1">
             <div class="col-7">
-                <div class="small text-muted">
-                    <p class="fw-bold mb-1 text-theme">เงื่อนไข / หมายเหตุ:</p>
-                    <ul class="ps-3 mb-0" style="font-size: 0.85rem;">
-                        <li>กรุณายืนยันการสั่งซื้อตามใบเสนอราคานี้</li>
-                        <li>ราคานี้ยังไม่รวมค่าขนส่ง (ถ้ามี)</li>
-                    </ul>
+                <div class="pr-3">
+                    
+                    <div class="mb-3 p-2 pl-3" style="background-color: #f1fcf6; border-radius: 6px; border-left: 4px solid #28a745;">
+                        <h6 class="font-weight-bold text-success mb-1" style="font-size: 0.8rem;">
+                            <i class="fas fa-university mr-1"></i> ข้อมูลการชำระเงิน (Payment Details)
+                        </h6>
+                        <div class="small text-dark" style="line-height: 1.5;">
+                            ธนาคาร: <strong>กสิกรไทย (KBANK)</strong><br>
+                            ชื่อบัญชี: <strong>บริษัท นีด ช็อปปิ้ง จำกัด</strong><br>
+                            เลขบัญชี: <strong style="font-size: 0.9rem;">075-3-824782</strong>
+                        </div>
+                    </div>
+
+                    <strong class="text-dark">เงื่อนไข / หมายเหตุ:</strong>
+                    
+                    <div class="mt-1 text-secondary small" style="line-height: 1.6;">
+                        {% if qt.note %}
+                            {{ qt.note|linebreaks }}
+                        {% else %}
+                            - กรุณายืนยันการสั่งซื้อตามใบเสนอราคานี้ <br>
+                            - ราคานี้ยังไม่รวมค่าขนส่ง (ถ้ามี)
+                        {% endif %}
+                    </div>
                 </div>
             </div>
+
             <div class="col-5">
                 <table class="table table-borderless table-sm">
+                    {% if qt.shipping_cost > 0 %}
                     <tr>
-                        <td class="text-end text-muted py-0">รวมเป็นเงิน (Subtotal)</td>
-                        <td class="text-end fw-bold py-0">{{ qt.subtotal|intcomma }}</td>
+                        <td class="text-right text-primary">ค่าขนส่ง (Shipping)</td>
+                        <td class="text-right text-primary no-wrap">{{ qt.shipping_cost|intcomma }} บาท</td>
                     </tr>
+                    {% endif %}
+
+                    {% if qt.discount > 0 %}
                     <tr>
-                        <td class="text-end text-muted py-0">ภาษีมูลค่าเพิ่ม 7% (VAT)</td>
-                        <td class="text-end text-danger py-0">{{ qt.vat_amount|intcomma }}</td>
+                        <td class="text-right text-danger">หักส่วนลด (Discount)</td>
+                        <td class="text-right text-danger no-wrap">-{{ qt.discount|intcomma }} บาท</td>
                     </tr>
-                    <tr style="border-top: 1px solid var(--theme-color); border-bottom: 2px solid var(--theme-color);">
-                        <td class="text-end fw-bold text-theme py-1 fs-6">ยอดสุทธิ (Grand Total)</td>
-                        <td class="text-end fw-bold text-theme py-1 fs-6">{{ qt.grand_total|intcomma }}</td>
+                    {% endif %}
+
+                    <tr>
+                        <td class="text-right text-muted">รวมเป็นเงิน (Subtotal)</td>
+                        <td class="text-right no-wrap">{{ qt.subtotal|intcomma }} บาท</td>
+                    </tr>
+
+                    <tr>
+                        <td class="text-right text-muted">ภาษีมูลค่าเพิ่ม 7% (VAT)</td>
+                        <td class="text-right text-danger no-wrap">{{ qt.vat_amount|intcomma }} บาท</td>
+                    </tr>
+                    
+                    <tr style="border-top: 2px solid #1cc88a; border-bottom: 2px solid #1cc88a; background-color: #f8f9fc;">
+                        <td class="text-right font-weight-bold text-success py-2 align-middle">ยอดสุทธิ (Grand Total)</td>
+                        <td class="text-right font-weight-bold text-success py-2 no-wrap" style="font-size: 1.3rem;">
+                            {{ qt.grand_total|intcomma }} บาท
+                        </td>
                     </tr>
                 </table>
             </div>
         </div>
 
-        <div class="row mt-auto pt-5" style="margin-top: 30px;">
+        <div class="row mt-auto" style="padding-top: 40px;"> 
             <div class="col-6 text-center">
-                <div style="border-bottom: 1px dashed #ccc; width: 70%; margin: 0 auto 10px;"></div>
-                <p class="fw-bold text-theme mb-0 small">ผู้สั่งซื้อ (Buyer)</p>
-                <p class="small text-muted" style="font-size: 0.75rem;">วันที่: ______/______/______</p>
+                <div class="text-secondary" style="font-size: 0.7rem; line-height: 1.5; margin-bottom: 50px;">
+                    ผู้ซื้อรับทราบเงื่อนไขการรับประกันของบริษัทฯ <br>
+                    และลงชื่อเป็นลายลักษณ์อักษร
+                </div>
+
+                <div style="border-bottom: 1px dotted #ccc; width: 80%; margin: 0 auto;"></div>
+                <div class="mt-2 font-weight-bold small text-dark">ผู้สั่งซื้อ (Buyer)</div>
+                <div class="small text-muted mt-1">วันที่: ___/___/______</div>
             </div>
-            <div class="col-6 text-center">
-                <div style="border-bottom: 1px dashed #ccc; width: 70%; margin: 0 auto 10px;"></div>
-                <p class="fw-bold text-theme mb-0 small">ผู้จัดการ (Authorized Signature)</p>
-                <p class="small text-muted" style="font-size: 0.75rem;">{{ company.name_th }}</p>
+
+            <div class="col-6 text-center align-self-end">
+                <div style="border-bottom: 1px dotted #ccc; width: 80%; margin: 0 auto;"></div>
+                <div class="mt-2 font-weight-bold small text-dark">ผู้จัดการ (Authorized Signature)</div>
+                <div class="small text-muted mt-1">บริษัท นีด ช็อปปิ้ง จำกัด</div>
             </div>
         </div>
         
-        <div class="text-center mt-4 border-top pt-2">
-            <p class="small text-muted mb-0" style="font-size: 0.7rem;">ขอบคุณที่ใช้บริการ (Thank you for your business)</p>
+        <div class="text-center text-muted small border-top" 
+             style="position: absolute; bottom: 25mm; left: 15mm; right: 15mm; padding-top: 10px; font-size: 0.7rem;">
+            ขอบคุณที่ใช้บริการ (Thank you for your business)
         </div>
 
     </div>
-</div>
-{% endblock %}
+
+</body>
+</html>

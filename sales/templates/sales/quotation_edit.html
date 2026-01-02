@@ -2,6 +2,14 @@
 {% load humanize %}
 
 {% block content %}
+
+<style>
+    .table-hover th, .table-hover td {
+        border-top: none !important;
+        border-bottom: none !important;
+    }
+</style>
+
 <div class="container-fluid py-4" style="background-color: #f8f9fc;">
     
     <div class="d-flex justify-content-between align-items-center mb-4 fade-in">
@@ -9,7 +17,7 @@
             <h2 class="h3 mb-0 text-gray-800 font-weight-bold">
                 <i class="fas fa-file-invoice-dollar text-primary"></i> แก้ไขใบเสนอราคา
             </h2>
-            <p class="text-muted mb-0">เลขที่เอกสาร: <span class="badge badge-primary" style="font-size: 1rem;">{{ qt.qt_number }}</span></p>
+            <p class="text-muted mb-0">เลขที่เอกสาร: <span class="badge badge-primary" style="font-size: 1rem;">{{ qt.quotation_no }}</span></p>
         </div>
         <div>
             <a href="{% url 'quotation_detail' qt.id %}" class="btn btn-success shadow-sm">
@@ -36,7 +44,7 @@
                             <select name="customer_id" class="form-control select2 mr-2" style="width: 100%;">
                                 <option value="">-- ค้นหาลูกค้า --</option>
                                 {% for c in customers %}
-                                <option value="{{ c.id }}">{{ c.name }}</option>
+                                    <option value="{{ c.id }}">{{ c.name }}</option>
                                 {% endfor %}
                             </select>
                             <button type="submit" name="select_customer" class="btn btn-primary btn-sm px-3">
@@ -141,7 +149,7 @@
                         </div>
                         <div class="col-md-2 mb-3">
                             <label class="small font-weight-bold text-muted">จำนวน</label>
-                            <input type="number" name="quantity" class="form-control text-center" value="1" min="1" required>
+                            <input type="number" name="quantity" class="form-control text-center" value="1" min="1" required style="color: #000000; font-weight: bold;">
                         </div>
                         <div class="col-md-1 mb-3">
                             <button type="submit" name="add_item" class="btn btn-success btn-block shadow-sm" title="เพิ่มลงรายการ">
@@ -161,11 +169,11 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="thead-light">
                             <tr>
-                                <th style="width: 5%;">#</th>
+                                <th style="width: 5%;" class="text-center">ลำดับ</th>
                                 <th style="width: 45%;">สินค้า</th>
                                 <th style="width: 15%;" class="text-center">จำนวน</th>
-                                <th style="width: 15%;" class="text-right">ราคา/หน่วย</th>
-                                <th style="width: 15%;" class="text-right">รวม</th>
+                                <th style="width: 15%; text-align: right;">ราคา/หน่วย</th>
+                                <th style="width: 15%; text-align: right;">รวมจำนวนเงิน</th>
                                 <th style="width: 5%;"></th>
                             </tr>
                         </thead>
@@ -177,11 +185,14 @@
                                     <div class="font-weight-bold text-primary">{{ item.product.name }}</div>
                                     <div class="small text-muted">{{ item.product.code }}</div>
                                 </td>
-                                <td class="text-center align-middle">
-                                    <span class="badge badge-light border px-2 py-1">{{ item.quantity }}</span>
+                                
+                                <td class="text-center align-middle" style="color: #000000;">
+                                    {{ item.quantity }}
                                 </td>
-                                <td class="text-right align-middle">{{ item.unit_price|intcomma }}</td>
-                                <td class="text-right align-middle font-weight-bold text-dark">{{ item.total_price|intcomma }}</td>
+
+                                <td class="align-middle text-dark" style="text-align: right;">{{ item.unit_price|intcomma }}</td>
+                                <td class="align-middle font-weight-bold text-dark" style="text-align: right;">{{ item.total_price|intcomma }}</td>
+                                
                                 <td class="text-center align-middle">
                                     <a href="{% url 'delete_item' item.id %}" class="btn btn-outline-danger btn-sm btn-circle" onclick="return confirm('ยืนยันลบรายการนี้?');" title="ลบ">
                                         <i class="fas fa-trash"></i>
@@ -202,24 +213,66 @@
                 </div>
                 
                 <div class="card-footer bg-white">
-                    <div class="row justify-content-end">
-                        <div class="col-lg-5 col-md-6">
-                            <table class="table table-sm table-borderless mb-0">
-                                <tr>
-                                    <td class="text-right text-muted">รวมเป็นเงิน (Subtotal):</td>
-                                    <td class="text-right font-weight-bold">{{ qt.subtotal|intcomma }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="text-right text-muted">ภาษีมูลค่าเพิ่ม (VAT 7%):</td>
-                                    <td class="text-right text-danger">{{ qt.vat_amount|intcomma }}</td>
-                                </tr>
-                                <tr class="border-top border-dark">
-                                    <td class="text-right align-middle pt-3"><h5 class="font-weight-bold text-dark m-0">ยอดสุทธิ (Total):</h5></td>
-                                    <td class="text-right pt-3"><h4 class="font-weight-bold text-success m-0">฿{{ qt.grand_total|intcomma }}</h4></td>
-                                </tr>
-                            </table>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="update_totals" value="1">
+                        <button type="submit" style="display: none;"></button>
+
+                        <div class="row">
+                            <div class="col-lg-7 border-right">
+                                <div class="form-group h-100 pr-3">
+                                    <label class="small font-weight-bold text-primary">
+                                        <i class="fas fa-pen"></i> หมายเหตุ / เงื่อนไข (Note):
+                                    </label>
+                                    <textarea name="note" class="form-control" style="height: 85%; min-height: 120px;" 
+                                              placeholder="เช่น กำหนดยืนยันราคาภายใน 7 วัน, การชำระเงิน 30 วัน หรือรายละเอียดการส่งของ...">{{ qt.note|default:'' }}</textarea>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-5">
+                                <table class="table table-sm table-borderless mb-0">
+                                    <tr style="border-bottom: 1px solid #e3e6f0;">
+                                        <td class="text-right text-muted align-middle pb-2">รวมราคาสินค้า:</td>
+                                        <td class="pb-2" style="text-align: right;">
+                                            <span class="font-weight-bold" style="color: #000; font-size: 1.1em;">{{ item_total|intcomma }}</span>
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <td class="text-right text-muted align-middle pt-2">ค่าขนส่ง:</td>
+                                        <td class="pt-2" style="width: 150px;">
+                                            <input type="text" name="shipping_cost" value="{{ qt.shipping_cost|floatformat:2|intcomma }}" class="form-control form-control-sm" placeholder="0.00" style="color: #000; text-align: right;">
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-right text-muted align-middle">หักส่วนลด:</td>
+                                        <td>
+                                            <input type="text" name="discount" value="{{ qt.discount|floatformat:2|intcomma }}" class="form-control form-control-sm text-danger" placeholder="0.00" style="color: #e74a3b; text-align: right;">
+                                        </td>
+                                    </tr>
+                                    
+                                    <tr class="border-top">
+                                        <td class="text-right text-muted pt-2">ราคาสินค้าก่อนภาษี:</td>
+                                        <td class="font-weight-bold pt-2" style="text-align: right;">{{ qt.subtotal|intcomma }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-right text-muted">ภาษีมูลค่าเพิ่ม 7%:</td>
+                                        <td class="text-danger" style="text-align: right;">{{ qt.vat_amount|intcomma }}</td>
+                                    </tr>
+                                    
+                                    <tr class="border-top border-dark">
+                                        <td class="text-right align-middle pt-3">
+                                            <span class="font-weight-bold text-dark" style="font-size: 1.1rem;">จำนวนเงินรวมทั้งสิ้น:</span>
+                                        </td>
+                                        <td class="pt-3" style="text-align: right;">
+                                            <span class="font-weight-bold text-success" style="font-size: 1.3rem;">฿{{ qt.grand_total|intcomma }}</span>
+                                        </td>
+                                    </tr>
+                                    
+                                </table>
+                            </div>
                         </div>
-                    </div>
+                    </form>
                 </div>
             </div>
 
@@ -229,7 +282,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- 1. Auto-Fill Price Script ---
+        // --- Auto-Fill Price Script ---
         const productSelect = document.querySelector('select[name="product"]');
         const priceInput = document.querySelector('input[name="price"]');
         
@@ -243,13 +296,12 @@
             });
         }
 
-        // --- 2. Thai Address Logic (จากที่เราแก้กันจนผ่าน) ---
+        // --- Thai Address Logic ---
         const provinceSelect = document.getElementById('select_province');
         const amphureSelect = document.getElementById('select_amphure');
         const tambonSelect = document.getElementById('select_tambon');
         const zipcodeInput = document.getElementById('input_zipcode');
 
-        // โหลดจังหวัด
         fetch("{% url 'get_provinces' %}")
             .then(response => response.json())
             .then(data => {
@@ -268,7 +320,6 @@
                 }
             });
 
-        // เปลี่ยนจังหวัด -> โหลดอำเภอ
         provinceSelect.addEventListener('change', function() {
             const pName = this.value;
             amphureSelect.innerHTML = '<option value="">...</option>';
@@ -297,7 +348,6 @@
             }
         });
 
-        // เปลี่ยนอำเภอ -> โหลดตำบล
         amphureSelect.addEventListener('change', function() {
             const aName = this.value;
             const pName = provinceSelect.value;
@@ -326,7 +376,6 @@
             }
         });
 
-        // เปลี่ยนตำบล -> ใส่รหัสไปรษณีย์
         tambonSelect.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
             if (selectedOption.dataset.zip) {

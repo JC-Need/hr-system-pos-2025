@@ -67,7 +67,6 @@ class Customer(models.Model):
         parts = [self.address, self.sub_district, self.district, self.province, self.postal_code]
         return " ".join([p for p in parts if p])
 
-    # ✅ ย้าย Meta เข้ามาใน Class Customer ให้ถูกต้อง
     class Meta:
         verbose_name = "ฐานข้อมูลลูกค้า"
         verbose_name_plural = "ฐานข้อมูลลูกค้า (Customers)"
@@ -102,6 +101,11 @@ class Quotation(models.Model):
     sales_person = models.ForeignKey(Employee, on_delete=models.SET_NULL, null=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
+    # ✅ เพิ่ม 2 บรรทัดนี้ (ค่าขนส่ง และ ส่วนลด)
+    shipping_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="ค่าขนส่ง")
+    discount = models.DecimalField(max_digits=12, decimal_places=2, default=0, verbose_name="ส่วนลด")
+
+    # ตัวเลขคำนวณ
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     vat_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     grand_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
