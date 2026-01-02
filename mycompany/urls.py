@@ -17,6 +17,8 @@ urlpatterns = [
 
     # 4. ✅ ระบบฝ่ายขายใหม่ (Sales App) - เพิ่มบรรทัดนี้ครับ
     path('sales/', include('sales.urls')),
+
+    path('customers/', include('customers.urls')),
 ]
 
 # ส่วนนี้ช่วยให้แสดงรูปภาพได้ตอนรันบนเครื่อง (Debug Mode)

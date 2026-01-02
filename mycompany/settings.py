@@ -2,7 +2,7 @@
 Django settings for mycompany project.
 """
 
-import os  # ✅ เติมอันนี้มาให้แล้วครับ
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -27,7 +27,10 @@ INSTALLED_APPS = [
     'employees',
     'django.contrib.humanize',
     'import_export',
-    'sales'
+    'sales',
+    
+    # ✅ เพิ่มบรรทัดนี้ครับ: ระบบฐานข้อมูลลูกค้า
+    'customers',
 ]
 
 MIDDLEWARE = [
@@ -65,10 +68,10 @@ WSGI_APPLICATION = 'mycompany.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'JCNeed1975$hr_db',    # 👈 ชื่อ Database เต็มๆ (ที่มี $ คั่น)
-        'USER': 'JCNeed1975',          # 👈 Username ของคุณ
-        'PASSWORD': 'HrSystem2025',     # 👈 ⚠️ แก้ตรงนี้! ใส่รหัสผ่าน Database ที่ตั้งในข้อ 1
-        'HOST': 'JCNeed1975.mysql.pythonanywhere-services.com', # 👈 Database host (อันยาวๆ)
+        'NAME': 'JCNeed1975$hr_db',    # ชื่อ Database
+        'USER': 'JCNeed1975',          # Username
+        'PASSWORD': 'HrSystem2025',    # Password
+        'HOST': 'JCNeed1975.mysql.pythonanywhere-services.com', # Host
         'PORT': '3306',
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
@@ -86,10 +89,12 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = '/static/'  # ✅ แก้เป็น /static/ (มี / ข้างหน้า)
-
-# ✅ เติมบรรทัดสำคัญนี้ลงไป!
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Media files (Images)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -97,28 +102,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ==========================================
 # ตั้งค่าการล็อกอิน/ล็อกเอาท์
 # ==========================================
-# ถ้ายังไม่ล็อกอิน ให้ดีดมาที่หน้าแรก (Home)
 LOGIN_URL = '/'
-
-# พอล็อกอินเสร็จ ให้ไป Dashboard
 LOGIN_REDIRECT_URL = 'dashboard'
-
-# พอล็อกเอาท์เสร็จ ให้กลับมาหน้าแรก (Home) 👈 ตัวนี้แหละครับที่ช่วยแก้ปัญหา
 LOGOUT_REDIRECT_URL = '/'
-# ==========================================
-# ตั้งค่าการเก็บไฟล์รูปภาพ (Media)
-# ==========================================
-import os
-
-# URL ที่ใช้เรียกดูรูปในหน้าเว็บ
-MEDIA_URL = '/media/'
-
-# โฟลเดอร์จริงๆ ในเครื่องที่จะเก็บไฟล์
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # ==========================================
 # 📅 การตั้งค่าวันที่ (Date Format)
 # ==========================================
 DATE_INPUT_FORMATS = ['%d/%m/%Y']
-USE_L10N = False # ปิดการตั้งค่าอัตโนมัติ เพื่อบังคับใช้ Format ของเรา
+USE_L10N = False 
 DATE_FORMAT = 'd/m/Y'

@@ -25,11 +25,12 @@
             <p class="text-muted mb-0">เลขที่เอกสาร: <span class="badge badge-primary" style="font-size: 1rem;">{{ qt.quotation_no }}</span></p>
         </div>
         <div>
-            <a href="{% url 'quotation_detail' qt.id %}" class="btn btn-success shadow-sm">
-                <i class="fas fa-print fa-sm text-white-50"></i> พิมพ์ / ดูตัวอย่าง
-            </a>
             <a href="{% url 'quotation_list' %}" class="btn btn-secondary shadow-sm">
                 <i class="fas fa-chevron-left fa-sm text-white-50"></i> กลับหน้ารายการ
+            </a>
+
+            <a href="{% url 'quotation_detail' qt.id %}" class="btn btn-success shadow-sm">
+                <i class="fas fa-print fa-sm text-white-50"></i> พิมพ์ / ดูตัวอย่าง
             </a>
         </div>
     </div>
@@ -64,9 +65,7 @@
                         {% csrf_token %}
                         <div class="form-group">
                             <label class="small font-weight-bold">ชื่อลูกค้า / บริษัท <span class="text-danger">*</span></label>
-                            
                             <input type="text" name="customer_name" class="form-control" value="{{ qt.customer_name|default:'' }}" required placeholder="ระบุชื่อลูกค้า...">
-                        
                         </div>
 
                         <div class="form-row">

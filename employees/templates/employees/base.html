@@ -49,6 +49,13 @@
                                              </a>
                                         </li>
 
+                                        <li class="nav-item">
+                                            <a class="nav-link" href="{% url 'customer_list' %}">
+                                                <i class="fas fa-fw fa-users"></i>
+                                                <span>ฐานข้อมูลลูกค้า</span>
+                                            </a>
+                                        </li>
+
                                     {% elif url_name != 'sales_dashboard' and url_name != 'hr_dashboard' and url_name != 'production_dept_dashboard' and url_name != 'inventory_dashboard' and url_name != 'purchasing_dashboard' and url_name != 'marketing_dashboard' and url_name != 'accounting_dashboard' and url_name != 'operations_dashboard' %}
                                         <li class="nav-item ms-3">
                                              <a href="{% url 'dashboard' %}" class="btn btn-success btn-sm text-white fw-bold shadow-sm rounded-pill d-inline-flex align-items-center px-3 py-2">

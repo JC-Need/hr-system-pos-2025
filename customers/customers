@@ -1,0 +1,19 @@
+from django import forms
+from .models import Customer
+
+class CustomerForm(forms.ModelForm):
+    class Meta:
+        model = Customer
+        fields = '__all__' # เอาทุกช่อง
+        widgets = {
+            'note': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # วนลูปใส่ class form-control ให้ทุกช่อง สวยงามอัตโนมัติ
+        for field in self.fields:
+            self.fields[field].widget.attrs.update({'class': 'form-control'})
+        
+        # ปรับแต่ง Checkbox ให้เป็น style ของ Bootstrap
+        self.fields['is_active'].widget.attrs.update({'class': 'form-check-input ml-2'})
