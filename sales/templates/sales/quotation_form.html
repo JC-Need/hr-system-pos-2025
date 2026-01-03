@@ -3,14 +3,16 @@
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-primary text-white">
+        <div class="col-md-9">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-file-invoice"></i> สร้างใบเสนอราคาใหม่ (Create Quotation)</h5>
                 </div>
+                
                 <div class="card-body p-4">
                     <form method="post">
                         {% csrf_token %}
+
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">วันที่เอกสาร</label>
@@ -21,25 +23,59 @@
                                 {{ form.valid_until }}
                             </div>
                         </div>
+
+                        <hr class="my-4 text-muted">
+
+                        <div class="mb-3 p-3 bg-light rounded border">
+                            <label class="form-label fw-bold text-primary"><i class="fas fa-search"></i> ค้นหาลูกค้าเก่า (ดึงข้อมูลอัตโนมัติ)</label>
+                            <select id="customer_select" class="form-control" style="width: 100%;">
+                                <option value="">-- พิมพ์ชื่อลูกค้าเพื่อค้นหา --</option>
+                                {% for customer in customers %}
+                                <option value="{{ customer.id }}" 
+                                        data-name="{{ customer.name }}"
+                                        data-tax="{{ customer.tax_id|default:'' }}"
+                                        data-phone="{{ customer.phone|default:'' }}" 
+                                        data-address="{{ customer.address|default:'' }} {{ customer.sub_district|default:'' }} {{ customer.district|default:'' }} {{ customer.province|default:'' }} {{ customer.zip_code|default:'' }}">
+                                    {{ customer.code }} : {{ customer.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="mt-2 text-end">
+                                <a href="{% url 'customer_create' %}" target="_blank" class="small text-decoration-none">
+                                    <i class="fas fa-plus-circle"></i> เพิ่มลูกค้าใหม่
+                                </a>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
-                            <label class="form-label fw-bold">ชื่อลูกค้า / บริษัท</label>
+                            <label class="form-label fw-bold">ชื่อลูกค้า / บริษัท <span class="text-danger">*</span></label>
                             {{ form.customer_name }}
                         </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">เลขผู้เสียภาษี (ถ้ามี)</label>
+                                {{ form.customer_tax_id }}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">เบอร์โทรศัพท์</label>
+                                {{ form.customer_phone }}
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label fw-bold">ที่อยู่</label>
                             {{ form.customer_address }}
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">เลขผู้เสียภาษี (ถ้ามี)</label>
-                            {{ form.customer_tax_id }}
-                        </div>
+                        
                         <div class="mb-4">
                             <label class="form-label fw-bold">หมายเหตุ</label>
                             {{ form.note }}
                         </div>
-                        <div class="d-flex justify-content-between">
+
+                        <div class="d-flex justify-content-between pt-3 border-top">
                             <a href="{% url 'quotation_list' %}" class="btn btn-secondary">ยกเลิก</a>
-                            <button type="submit" class="btn btn-success px-4"><i class="fas fa-save me-1"></i> บันทึกและไปต่อ</button>
+                            <button type="submit" class="btn btn-success px-4 shadow"><i class="fas fa-save me-1"></i> บันทึกและไปต่อ</button>
                         </div>
                     </form>
                 </div>
@@ -47,15 +83,46 @@
         </div>
     </div>
 </div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@x.x.x/dist/select2-bootstrap4.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        flatpickr(".datepicker", {
-            dateFormat: "d/m/Y",  // 👈 บังคับ format เป็น วัน/เดือน/ปี
-            allowInput: true,     // อนุญาตให้พิมพ์เองได้ด้วย
-            // defaultDate: "today" // (ถ้าต้องการให้ขึ้นวันนี้เสมอ ให้เอาคอมเมนต์ออก)
+    $(document).ready(function() {
+        // 1. Datepicker
+        flatpickr(".datepicker", { dateFormat: "d/m/Y", allowInput: true, locale: "th" });
+
+        // 2. Select2
+        $('#customer_select').select2({ theme: 'bootstrap4', placeholder: "-- พิมพ์ชื่อลูกค้า --", allowClear: true });
+
+        // 3. Auto-Fill Script
+        $('#customer_select').on('change', function () {
+            var selected = $(this).find(':selected');
+            var val = $(this).val();
+
+            if (!val) {
+                $('#id_customer_name').val('');
+                $('#id_customer_tax_id').val('');
+                $('#id_customer_phone').val(''); // ล้างเบอร์โทร
+                $('#id_customer_address').val('');
+                return;
+            }
+
+            $('#id_customer_name').val(selected.data('name'));
+            $('#id_customer_tax_id').val(selected.data('tax'));
+            $('#id_customer_phone').val(selected.data('phone')); // ✅ ดึงเบอร์โทรมาใส่
+            $('#id_customer_address').val(selected.data('address'));
         });
     });
 </script>
+
+<style>
+    .form-control, .select2-selection--single { height: 38px !important; }
+    textarea.form-control { height: auto !important; }
+    .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered { line-height: 36px; }
+</style>
 {% endblock %}

@@ -3,40 +3,107 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3 class="fw-bold text-dark"><i class="fas fa-file-invoice text-primary me-2"></i>รายการใบเสนอราคา</h3>
-        <a href="{% url 'quotation_create' %}" class="btn btn-success fw-bold rounded-pill shadow-sm"><i class="fas fa-plus"></i> สร้างใหม่</a>
+    
+    <div class="row align-items-center mb-4">
+        <div class="col-md-4">
+            <h3 class="fw-bold text-dark mb-0"><i class="fas fa-file-invoice text-primary me-2"></i>รายการใบเสนอราคา</h3>
+        </div>
+        <div class="col-md-8">
+            <div class="d-flex justify-content-md-end align-items-center gap-2">
+                <form method="get" class="d-flex position-relative" style="width: 300px;">
+                    <input type="text" name="q" class="form-control rounded-pill ps-4 pe-5" 
+                           placeholder="ค้นหาเลขที่ หรือ ลูกค้า..." 
+                           value="{{ search_query|default:'' }}">
+                    <button type="submit" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-primary" style="text-decoration: none;">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </form>
+
+                <a href="{% url 'quotation_create' %}" class="btn btn-success fw-bold rounded-pill shadow-sm px-4">
+                    <i class="fas fa-plus me-1"></i> สร้างใหม่
+                </a>
+            </div>
+        </div>
     </div>
 
     <div class="card shadow-sm border-0">
         <div class="card-body p-0">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" style="table-layout: fixed;">
                 <thead class="bg-light text-secondary">
                     <tr>
-                        <th class="ps-4">เลขที่</th>
-                        <th>ลูกค้า</th>
-                        <th>วันที่</th>
-                        <th class="text-end">ยอดสุทธิ</th>
-                        <th class="text-center">จัดการ</th>
+                        <th class="ps-4" style="width: 15%;">เลขที่</th>
+                        <th style="width: 25%;">ลูกค้า</th>
+                        <th style="width: 12%;">วันที่</th>
+                        <th class="text-end" style="width: 15%;">ยอดสุทธิ</th>
+                        <th class="text-center" style="width: 20%;">ผู้ออกเอกสาร</th>
+                        <th class="text-center" style="width: 13%;">จัดการ</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for qt in qts %}
+                    {% for qt in page_obj %}
                     <tr>
-                        <td class="ps-4 fw-bold text-primary">{{ qt.qt_number }}</td>
-                        <td>{{ qt.customer_name }}</td>
+                        <td class="ps-4 fw-bold text-primary text-truncate">{{ qt.qt_number }}</td>
+                        <td class="text-truncate" title="{{ qt.customer_name }}">{{ qt.customer_name }}</td>
                         <td>{{ qt.date|date:"d M Y" }}</td>
+                        
                         <td class="text-end fw-bold">{{ qt.grand_total|intcomma }}</td>
+
+                        <td class="text-center text-truncate text-secondary">
+                            {% if qt.sales_person %}
+                                <i class="fas fa-user-tie me-1 small"></i>{{ qt.sales_person.first_name }}
+                            {% else %}
+                                <i class="fas fa-user me-1 small"></i>{{ qt.created_by.first_name|default:"-" }}
+                            {% endif %}
+                        </td>
+
                         <td class="text-center">
                             <a href="{% url 'quotation_detail' qt.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">ดูรายละเอียด</a>
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="text-center py-5 text-muted">ยังไม่มีข้อมูล</td></tr>
+                    <tr><td colspan="6" class="text-center py-5 text-muted">ไม่พบข้อมูลใบเสนอราคา</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white py-3">
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center mb-0">
+                    
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link rounded-circle mx-1 border-0 text-dark bg-light" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" aria-label="Previous">
+                            <i class="fas fa-chevron-left small"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for i in page_obj.paginator.page_range %}
+                        {% if page_obj.number == i %}
+                        <li class="page-item active"><span class="page-link rounded-circle mx-1 border-0 shadow-sm">{{ i }}</span></li>
+                        {% else %}
+                        <li class="page-item">
+                            <a class="page-link rounded-circle mx-1 border-0 text-dark" href="?page={{ i }}{% if search_query %}&q={{ search_query }}{% endif %}">{{ i }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link rounded-circle mx-1 border-0 text-dark bg-light" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" aria-label="Next">
+                            <i class="fas fa-chevron-right small"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            <div class="text-center mt-2 small text-muted">
+                แสดงหน้า {{ page_obj.number }} จาก {{ page_obj.paginator.num_pages }} (ทั้งหมด {{ page_obj.paginator.count }} รายการ)
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

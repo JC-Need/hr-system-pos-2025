@@ -3,32 +3,35 @@
 
 {% block content %}
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@x.x.x/dist/select2-bootstrap4.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <style>
     .table-hover th, .table-hover td {
         border-top: none !important;
         border-bottom: none !important;
     }
-    
-    /* เพิ่ม Transition ให้แจ้งเตือนจางหายสวยๆ */
-    .alert {
-        transition: opacity 1s ease-out;
-    }
+    .alert { transition: opacity 1s ease-out; }
+    /* ปรับความสูงช่อง Select2 ให้เท่ากับ Input ทั่วไป */
+    .select2-container .select2-selection--single { height: 38px !important; }
+    .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered { line-height: 36px !important; }
 </style>
 
 <div class="container-fluid py-4" style="background-color: #f8f9fc;">
-    
+
     <div class="d-flex justify-content-between align-items-center mb-4 fade-in">
         <div>
             <h2 class="h3 mb-0 text-gray-800 font-weight-bold">
                 <i class="fas fa-file-invoice-dollar text-primary"></i> แก้ไขใบเสนอราคา
             </h2>
-            <p class="text-muted mb-0">เลขที่เอกสาร: <span class="badge badge-primary" style="font-size: 1rem;">{{ qt.quotation_no }}</span></p>
+            <p class="text-muted mb-0">เลขที่เอกสาร: <span class="font-weight-bold text-danger" style="font-size: 1.25rem;">{{ qt.qt_number }}</span></p>
         </div>
         <div>
             <a href="{% url 'quotation_list' %}" class="btn btn-secondary shadow-sm">
                 <i class="fas fa-chevron-left fa-sm text-white-50"></i> กลับหน้ารายการ
             </a>
-
             <a href="{% url 'quotation_detail' qt.id %}" class="btn btn-success shadow-sm">
                 <i class="fas fa-print fa-sm text-white-50"></i> พิมพ์ / ดูตัวอย่าง
             </a>
@@ -42,18 +45,24 @@
                     <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-user-circle"></i> ข้อมูลลูกค้า</h6>
                 </div>
                 <div class="card-body">
-                    
+
                     <div class="p-3 mb-4 bg-light rounded border border-light">
                         <label class="small font-weight-bold text-muted mb-2">🔍 ดึงจากฐานข้อมูลลูกค้า</label>
                         <form method="POST" class="d-flex">
                             {% csrf_token %}
-                            <select name="customer_id" class="form-control select2 mr-2" style="width: 100%;">
+                            <select name="customer_id" id="customer_select_edit" class="form-control select2 mr-2" style="width: 100%;">
                                 <option value="">-- ค้นหาลูกค้า --</option>
                                 {% for c in customers %}
-                                    <option value="{{ c.id }}">{{ c.name }}</option>
+                                <option value="{{ c.id }}"
+                                    data-name="{{ c.name }}"
+                                    data-tax="{{ c.tax_id|default:'' }}"
+                                    data-phone="{{ c.phone|default:'' }}"
+                                    data-address="{{ c.address|default:'' }} {{ c.sub_district|default:'' }} {{ c.district|default:'' }} {{ c.province|default:'' }} {{ c.zip_code|default:'' }}">
+                                    {{ c.name }}
+                                </option>
                                 {% endfor %}
                             </select>
-                            <button type="submit" name="select_customer" class="btn btn-primary btn-sm px-3">
+                            <button type="submit" name="select_customer" class="btn btn-primary btn-sm px-3" title="ดึงข้อมูลจาก Server">
                                 <i class="fas fa-download"></i>
                             </button>
                         </form>
@@ -65,23 +74,23 @@
                         {% csrf_token %}
                         <div class="form-group">
                             <label class="small font-weight-bold">ชื่อลูกค้า / บริษัท <span class="text-danger">*</span></label>
-                            <input type="text" name="customer_name" class="form-control" value="{{ qt.customer_name|default:'' }}" required placeholder="ระบุชื่อลูกค้า...">
+                            <input type="text" name="customer_name" id="id_customer_name" class="form-control" value="{{ qt.customer_name|default:'' }}" required>
                         </div>
 
                         <div class="form-row">
                             <div class="col-md-6 mb-3">
                                 <label class="small font-weight-bold">เลขผู้เสียภาษี</label>
-                                <input type="text" name="customer_tax_id" class="form-control" value="{{ qt.customer_tax_id|default:'' }}" placeholder="13 หลัก">
+                                <input type="text" name="customer_tax_id" id="id_customer_tax_id" class="form-control" value="{{ qt.customer_tax_id|default:'' }}">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="small font-weight-bold">เบอร์โทรศัพท์</label>
-                                <input type="text" name="customer_phone" class="form-control" value="{{ qt.customer_phone|default:'' }}" placeholder="0xx-xxx-xxxx">
+                                <input type="text" name="customer_phone" id="id_customer_phone" class="form-control" value="{{ qt.customer_phone|default:'' }}" placeholder="0xx-xxx-xxxx">
                             </div>
                         </div>
 
                         <div class="form-group">
                             <label class="small font-weight-bold">ที่อยู่ (เลขที่/ถนน/ซอย)</label>
-                            <textarea name="customer_address" class="form-control" rows="2" placeholder="บ้านเลขที่, หมู่บ้าน...">{{ qt.customer_address|default:'' }}</textarea>
+                            <textarea name="customer_address" id="id_customer_address" class="form-control" rows="2">{{ qt.customer_address|default:'' }}</textarea>
                         </div>
 
                         <div class="p-2 rounded" style="background-color: #f1f3f9;">
@@ -120,7 +129,6 @@
         </div>
 
         <div class="col-xl-8 col-lg-7">
-            
             <div class="card shadow mb-4 border-bottom-success">
                 <div class="card-header py-3 bg-white">
                     <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-cart-plus"></i> เพิ่มรายการสินค้า</h6>
@@ -150,7 +158,7 @@
                         </div>
                         <div class="col-md-2 mb-3">
                             <label class="small font-weight-bold text-muted">จำนวน</label>
-                            <input type="number" name="quantity" class="form-control text-center" value="1" min="1" required style="color: #000000; font-weight: bold;">
+                            <input type="number" name="quantity" class="form-control text-center" value="1" min="1" required style="font-weight: bold;">
                         </div>
                         <div class="col-md-1 mb-3">
                             <button type="submit" name="add_item" class="btn btn-success btn-block shadow-sm" title="เพิ่มลงรายการ">
@@ -186,14 +194,9 @@
                                     <div class="font-weight-bold text-primary">{{ item.product.name }}</div>
                                     <div class="small text-muted">{{ item.product.code }}</div>
                                 </td>
-                                
-                                <td class="text-center align-middle" style="color: #000000;">
-                                    {{ item.quantity }}
-                                </td>
-
+                                <td class="text-center align-middle" style="color: #000;">{{ item.quantity }}</td>
                                 <td class="align-middle text-dark" style="text-align: right;">{{ item.unit_price|intcomma }}</td>
                                 <td class="align-middle font-weight-bold text-dark" style="text-align: right;">{{ item.total_price|intcomma }}</td>
-                                
                                 <td class="text-center align-middle">
                                     <a href="{% url 'delete_item' item.id %}" class="btn btn-outline-danger btn-sm btn-circle" onclick="return confirm('ยืนยันลบรายการนี้?');" title="ลบ">
                                         <i class="fas fa-trash"></i>
@@ -212,25 +215,27 @@
                         </tbody>
                     </table>
                 </div>
-                
-                <div class="card-footer bg-white">
-                    <form method="POST">
+
+                <div class="card-footer bg-white p-3"> <form method="POST">
                         {% csrf_token %}
                         <input type="hidden" name="update_totals" value="1">
                         <button type="submit" style="display: none;"></button>
 
                         <div class="row">
-                            <div class="col-lg-7 border-right">
-                                <div class="form-group h-100 pr-3">
+                            <div class="col-lg-7 border-right pb-2">
+                                <div class="form-group mb-2">
                                     <label class="small font-weight-bold text-primary">
                                         <i class="fas fa-pen"></i> หมายเหตุ / เงื่อนไข (Note):
                                     </label>
-                                    <textarea name="note" class="form-control" style="height: 85%; min-height: 120px;" 
-                                              placeholder="เช่น กำหนดยืนยันราคาภายใน 7 วัน, การชำระเงิน 30 วัน หรือรายละเอียดการส่งของ...">{{ qt.note|default:'' }}</textarea>
+                                    <textarea name="note" class="form-control" rows="5" placeholder="ระบุเงื่อนไขการชำระเงิน หรือ รายละเอียดการส่งของ...">{{ qt.note|default:'' }}</textarea>
                                 </div>
+
+                                <button type="submit" name="save_note" class="btn btn-primary btn-sm shadow-sm">
+                                    <i class="fas fa-save me-1"></i> บันทึกหมายเหตุ
+                                </button>
                             </div>
 
-                            <div class="col-lg-5">
+                            <div class="col-lg-5 d-flex flex-column justify-content-center">
                                 <table class="table table-sm table-borderless mb-0">
                                     <tr style="border-bottom: 1px solid #e3e6f0;">
                                         <td class="text-right text-muted align-middle pb-2">รวมราคาสินค้า:</td>
@@ -238,7 +243,6 @@
                                             <span class="font-weight-bold" style="color: #000; font-size: 1.1em;">{{ item_total|intcomma }}</span>
                                         </td>
                                     </tr>
-
                                     <tr>
                                         <td class="text-right text-muted align-middle pt-2">ค่าขนส่ง:</td>
                                         <td class="pt-2" style="width: 150px;">
@@ -251,7 +255,6 @@
                                             <input type="text" name="discount" value="{{ qt.discount|floatformat:2|intcomma }}" class="form-control form-control-sm text-danger" placeholder="0.00" style="color: #e74a3b; text-align: right;">
                                         </td>
                                     </tr>
-                                    
                                     <tr class="border-top">
                                         <td class="text-right text-muted pt-2">ราคาสินค้าก่อนภาษี:</td>
                                         <td class="font-weight-bold pt-2" style="text-align: right;">{{ qt.subtotal|intcomma }}</td>
@@ -260,7 +263,6 @@
                                         <td class="text-right text-muted">ภาษีมูลค่าเพิ่ม 7%:</td>
                                         <td class="text-danger" style="text-align: right;">{{ qt.vat_amount|intcomma }}</td>
                                     </tr>
-                                    
                                     <tr class="border-top border-dark">
                                         <td class="text-right align-middle pt-3">
                                             <span class="font-weight-bold text-dark" style="font-size: 1.1rem;">จำนวนเงินรวมทั้งสิ้น:</span>
@@ -269,7 +271,6 @@
                                             <span class="font-weight-bold text-success" style="font-size: 1.3rem;">฿{{ qt.grand_total|intcomma }}</span>
                                         </td>
                                     </tr>
-                                    
                                 </table>
                             </div>
                         </div>
@@ -283,118 +284,118 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        
-        // ฟังก์ชัน Auto Fade-Out Alert ใน 5 วินาที
+
+        // 1. Alert Fade-Out
         setTimeout(function() {
             let alerts = document.querySelectorAll('.alert');
             alerts.forEach(function(alert) {
                 alert.style.opacity = "0";
-                setTimeout(function() {
-                    alert.remove();
-                }, 1000); 
+                setTimeout(function() { alert.remove(); }, 1000);
             });
         }, 5000);
 
-        // --- Auto-Fill Price Script ---
+        // 2. Select2 Initialization
+        $('.select2').select2({
+            theme: 'bootstrap4',
+            placeholder: "-- เลือก --",
+            allowClear: true
+        });
+
+        // ✅ 3. Auto-Fill Customer Data (ปรับปรุงใหม่ ใช้ .attr เพื่อความชัวร์)
+        $('#customer_select_edit').on('change', function () {
+            var selected = $(this).find(':selected');
+            var val = $(this).val();
+
+            if (!val) {
+                $('#id_customer_name').val('');
+                $('#id_customer_tax_id').val('');
+                $('#id_customer_phone').val('');
+                $('#id_customer_address').val('');
+                return;
+            }
+
+            // ใช้ .attr() แทน .data() เพื่อป้องกันการแคชค่า
+            $('#id_customer_name').val(selected.attr('data-name'));
+            $('#id_customer_tax_id').val(selected.attr('data-tax'));
+            $('#id_customer_phone').val(selected.attr('data-phone')); // ดึงเบอร์โทร
+            $('#id_customer_address').val(selected.attr('data-address'));
+        });
+
+        // 4. Auto-Fill Product Price
         const productSelect = document.querySelector('select[name="product"]');
         const priceInput = document.querySelector('input[name="price"]');
-        
+
         if(productSelect) {
-            productSelect.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                const price = selectedOption.getAttribute('data-price');
+            $('select[name="product"]').on('change', function() {
+                var selectedOption = $(this).find(':selected');
+                var price = selectedOption.attr('data-price');
                 if(price) {
                     priceInput.value = price;
                 }
             });
         }
 
-        // --- Thai Address Logic ---
+        // 5. Clear 0.00 on Focus
+        const moneyInputs = document.querySelectorAll('input[name="shipping_cost"], input[name="discount"], input[name="price"]');
+        moneyInputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                if (this.value == '0' || this.value == '0.00') { this.value = ''; }
+            });
+            input.addEventListener('blur', function() {
+                if (this.value == '') { this.value = '0.00'; }
+            });
+        });
+
+        // 6. Address Dropdown Logic
         const provinceSelect = document.getElementById('select_province');
         const amphureSelect = document.getElementById('select_amphure');
         const tambonSelect = document.getElementById('select_tambon');
         const zipcodeInput = document.getElementById('input_zipcode');
 
-        fetch("{% url 'get_provinces' %}")
-            .then(response => response.json())
-            .then(data => {
-                provinceSelect.innerHTML = '<option value="">-- เลือกจังหวัด --</option>';
-                data.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item.name_th;
-                    option.textContent = item.name_th;
-                    provinceSelect.appendChild(option);
+        if(provinceSelect) {
+            fetch("{% url 'get_provinces' %}")
+                .then(r => r.json())
+                .then(data => {
+                    provinceSelect.innerHTML = '<option value="">-- เลือกจังหวัด --</option>';
+                    data.forEach(item => {
+                        let opt = document.createElement('option');
+                        opt.value = item.name_th; opt.textContent = item.name_th;
+                        provinceSelect.appendChild(opt);
+                    });
+                    const def = provinceSelect.dataset.default;
+                    if(def && def !== 'None') { provinceSelect.value = def; provinceSelect.dispatchEvent(new Event('change')); }
                 });
 
-                const defaultProv = provinceSelect.dataset.default;
-                if (defaultProv && defaultProv !== 'None' && defaultProv !== '') {
-                    provinceSelect.value = defaultProv;
-                    provinceSelect.dispatchEvent(new Event('change'));
+            provinceSelect.addEventListener('change', function() {
+                let p = this.value;
+                amphureSelect.innerHTML = '<option value="">...</option>';
+                if(p) {
+                    fetch(`{% url 'get_amphures' %}?province=${p}`).then(r=>r.json()).then(d=>{
+                        amphureSelect.innerHTML = '<option value="">-- เลือกอำเภอ --</option>';
+                        d.forEach(i=>{ let o=document.createElement('option'); o.value=i.name_th; o.textContent=i.name_th; amphureSelect.appendChild(o); });
+                        const def = amphureSelect.dataset.default;
+                        if(def && def !== 'None') { amphureSelect.value = def; amphureSelect.dataset.default=''; amphureSelect.dispatchEvent(new Event('change')); }
+                    });
                 }
             });
 
-        provinceSelect.addEventListener('change', function() {
-            const pName = this.value;
-            amphureSelect.innerHTML = '<option value="">...</option>';
-            
-            if (pName) {
-                fetch(`{% url 'get_amphures' %}?province=${pName}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        amphureSelect.innerHTML = '<option value="">-- เลือกอำเภอ --</option>';
-                        data.forEach(item => {
-                            const option = document.createElement('option');
-                            option.value = item.name_th;
-                            option.textContent = item.name_th;
-                            amphureSelect.appendChild(option);
-                        });
-
-                        const defaultAmp = amphureSelect.dataset.default;
-                        if (defaultAmp && defaultAmp !== 'None' && defaultAmp !== '') {
-                            amphureSelect.value = defaultAmp;
-                            amphureSelect.dataset.default = ''; 
-                            amphureSelect.dispatchEvent(new Event('change'));
-                        }
-                    });
-            } else {
-                amphureSelect.innerHTML = '<option value="">-- เลือกอำเภอ --</option>';
-            }
-        });
-
-        amphureSelect.addEventListener('change', function() {
-            const aName = this.value;
-            const pName = provinceSelect.value;
-            tambonSelect.innerHTML = '<option value="">...</option>';
-
-            if (aName) {
-                fetch(`{% url 'get_tambons' %}?name=${aName}&province=${pName}`)
-                    .then(response => response.json())
-                    .then(data => {
+            amphureSelect.addEventListener('change', function() {
+                let a = this.value; let p = provinceSelect.value;
+                tambonSelect.innerHTML = '<option value="">...</option>';
+                if(a) {
+                    fetch(`{% url 'get_tambons' %}?name=${a}&province=${p}`).then(r=>r.json()).then(d=>{
                         tambonSelect.innerHTML = '<option value="">-- เลือกตำบล --</option>';
-                        data.forEach(item => {
-                            const option = document.createElement('option');
-                            option.value = item.name_th;
-                            option.textContent = item.name_th;
-                            option.dataset.zip = item.zip_code;
-                            tambonSelect.appendChild(option);
-                        });
-
-                        const defaultTam = tambonSelect.dataset.default;
-                        if (defaultTam && defaultTam !== 'None' && defaultTam !== '') {
-                            tambonSelect.value = defaultTam;
-                            tambonSelect.dataset.default = '';
-                            tambonSelect.dispatchEvent(new Event('change'));
-                        }
+                        d.forEach(i=>{ let o=document.createElement('option'); o.value=i.name_th; o.textContent=i.name_th; o.dataset.zip=i.zip_code; tambonSelect.appendChild(o); });
+                        const def = tambonSelect.dataset.default;
+                        if(def && def !== 'None') { tambonSelect.value = def; tambonSelect.dataset.default=''; tambonSelect.dispatchEvent(new Event('change')); }
                     });
-            }
-        });
+                }
+            });
 
-        tambonSelect.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            if (selectedOption.dataset.zip) {
-                zipcodeInput.value = selectedOption.dataset.zip;
-            }
-        });
+            tambonSelect.addEventListener('change', function() {
+                if(this.selectedIndex > 0) zipcodeInput.value = this.options[this.selectedIndex].dataset.zip || '';
+            });
+        }
     });
 </script>
 {% endblock %}
