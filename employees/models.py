@@ -128,7 +128,7 @@ class Product(models.Model):
     name = models.CharField(max_length=100, verbose_name="ชื่อสินค้า")
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="หมวดหมู่")
     description = models.TextField(blank=True, null=True, verbose_name="รายละเอียด")
-    
+
     PRODUCT_TYPES = [
         ('FG', 'สินค้าสำเร็จรูป (Finished Good)'),
         ('RM', 'วัตถุดิบ (Raw Material)'),
@@ -288,6 +288,9 @@ class CompanyInfo(models.Model):
     email = models.EmailField(verbose_name="อีเมล", blank=True)
     website = models.URLField(verbose_name="เว็บไซต์", blank=True)
     logo = models.ImageField(upload_to='company_logo/', verbose_name="โลโก้บริษัท", blank=True, null=True)
+
+    # ✅ เพิ่มบรรทัดนี้: ช่องเก็บรูปลายเซ็น + ตราประทับ
+    signature = models.ImageField(upload_to='company_signatures/', blank=True, null=True, verbose_name="ลายเซ็น+ตราประทับ")
 
     def __str__(self):
         return self.name_th

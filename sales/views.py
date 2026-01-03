@@ -7,7 +7,7 @@ import datetime
 from decimal import Decimal
 from django.http import JsonResponse
 
-# ✅ เพิ่ม imports สำคัญสำหรับการค้นหาและแบ่งหน้า
+# ✅ imports สำคัญสำหรับการค้นหาและแบ่งหน้า
 from django.core.paginator import Paginator
 from django.db.models import Q
 
@@ -17,30 +17,43 @@ from .models import Quotation, QuotationItem, Province, Amphure, Tambon
 from .forms import QuotationForm
 
 # ==========================================
-# 1. หน้ารายการ (List) - อัปเกรดแล้ว
+# 1. หน้ารายการ (List) - ✅ แก้ไข: เพิ่มการกรองสิทธิ์ User
 # ==========================================
 @login_required
 def quotation_list(request):
-    # 1. เริ่มต้นดึงข้อมูลทั้งหมด เรียงจากใหม่ไปเก่า
-    queryset = Quotation.objects.all().order_by('-created_at')
+    # ---------------------------------------------------
+    # 1. กรองข้อมูล (Filter Logic)
+    # ---------------------------------------------------
+    if request.user.is_superuser:
+        # ถ้าเป็น Admin ให้เห็นทั้งหมด
+        queryset = Quotation.objects.all().order_by('-created_at')
+    else:
+        # ถ้าเป็นพนักงานทั่วไป ให้เห็นเฉพาะของตัวเอง (สร้างเอง หรือ เป็นคนขาย)
+        queryset = Quotation.objects.filter(
+            Q(created_by=request.user) | 
+            Q(sales_person__user=request.user)
+        ).distinct().order_by('-created_at')
 
+    # ---------------------------------------------------
     # 2. ระบบค้นหา (Search Logic)
+    # ---------------------------------------------------
     search_query = request.GET.get('q')
     if search_query:
         queryset = queryset.filter(
-            Q(qt_number__icontains=search_query) |  # ค้นหาจากเลขที่
-            Q(customer_name__icontains=search_query) # หรือ ค้นหาจากชื่อลูกค้า
+            Q(qt_number__icontains=search_query) |
+            Q(customer_name__icontains=search_query)
         )
 
+    # ---------------------------------------------------
     # 3. ระบบแบ่งหน้า (Pagination)
-    # แบ่งแสดงหน้าละ 10 รายการ
-    paginator = Paginator(queryset, 10)
+    # ---------------------------------------------------
+    paginator = Paginator(queryset, 10) # หน้าละ 10 รายการ
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
     return render(request, 'sales/quotation_list.html', {
-        'page_obj': page_obj,        # ส่ง object ที่แบ่งหน้าแล้วไปที่ template
-        'search_query': search_query # ส่งคำที่ค้นหากลับไปแสดงค้างไว้ในช่อง
+        'page_obj': page_obj,
+        'search_query': search_query
     })
 
 # ==========================================
@@ -53,6 +66,7 @@ def quotation_create(request):
         if form.is_valid():
             qt = form.save(commit=False)
             qt.created_by = request.user
+            # เชื่อมโยง Employee อัตโนมัติ
             if hasattr(request.user, 'employee'):
                 qt.sales_person = request.user.employee
 
@@ -188,21 +202,21 @@ def quotation_detail(request, qt_id):
     from employees.models import CompanyInfo
     company = CompanyInfo.objects.first()
 
-    # โค้ดค้นหาลูกค้า (ที่เราเพิ่มไปก่อนหน้านี้)
+    # โค้ดค้นหาลูกค้า (Search for Customer object to get code)
     customer_obj = None
     if qt.customer_tax_id:
         customer_obj = Customer.objects.filter(tax_id=qt.customer_tax_id).first()
     if not customer_obj and qt.customer_name:
         customer_obj = Customer.objects.filter(name=qt.customer_name).first()
 
-    # ✅ เพิ่มบรรทัดนี้: คำนวณยอดรวมสินค้า (Item Total)
+    # ✅ คำนวณยอดรวมสินค้า (Item Total)
     item_total = sum(i.total_price for i in qt.items.all())
 
     return render(request, 'sales/quotation_detail.html', {
         'qt': qt,
         'company': company,
         'customer_obj': customer_obj,
-        'item_total': item_total # ✅ ส่งค่าไปที่หน้าจอ
+        'item_total': item_total 
     })
 
 # ==========================================

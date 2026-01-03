@@ -26,7 +26,7 @@
             background: white;
             margin: 0 auto;
             /* Padding ด้านล่าง 40mm เพื่อกันพื้นที่ให้ Footer */
-            padding: 15mm 15mm 40mm 15mm;
+            padding: 15mm 15mm 20mm 15mm;
             position: relative;
             box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
             box-sizing: border-box;
@@ -58,7 +58,7 @@
             body { background: white; padding: 0; }
             .page-a4 {
                 width: 100%; margin: 0;
-                padding: 15mm 15mm 40mm 15mm;
+                padding: 15mm 15mm 0 15mm;
                 box-shadow: none; border: none; min-height: 297mm;
             }
             .d-print-none { display: none !important; }
@@ -220,8 +220,8 @@
                         {% if qt.note %}
                             {{ qt.note|linebreaks }}
                         {% else %}
-                            - กรุณาชำระเงินมัดจำ 50% ของยอดรวม เพื่อยืนยันการสั่งซื้อ <br>
-                            - ชำระเงินส่วนที่เหลือทั้งหมด ก่อนการจัดส่งสินค้า
+                            - กรุณายืนยันการสั่งซื้อตามใบเสนอราคานี้ <br>
+                            - ราคานี้ยังไม่รวมค่าขนส่ง (ถ้ามี)
                         {% endif %}
                     </div>
                 </div>
@@ -249,7 +249,7 @@
                     {% endif %}
 
                     <tr>
-                        <td class="text-right text-muted" style="white-space: nowrap;">ราคาสินค้าก่อนภาษี</td>
+                        <td class="text-right text-muted" style="white-space: nowrap;">รวมเป็นเงิน</td>
                         <td class="text-right no-wrap">{{ qt.subtotal|intcomma }} บาท</td>
                     </tr>
 
@@ -259,7 +259,7 @@
                     </tr>
 
                     <tr style="border-top: 2px solid #1cc88a; border-bottom: 2px solid #1cc88a; background-color: #f8f9fc;">
-                        <td class="text-right font-weight-bold text-success py-2 align-middle" style="white-space: nowrap;">จำนวนเงินรวมทั้งสิ้น</td>
+                        <td class="text-right font-weight-bold text-success py-2 align-middle" style="white-space: nowrap;">ยอดสุทธิ</td>
                         <td class="text-right font-weight-bold text-success py-2 no-wrap" style="font-size: 1.3rem;">
                             {{ qt.grand_total|intcomma }} บาท
                         </td>
@@ -272,26 +272,26 @@
             <div class="col-6 text-center">
                 <div class="text-secondary" style="font-size: 0.7rem; line-height: 1.5; margin-bottom: 50px;">
                     ผู้ซื้อรับทราบเงื่อนไขการรับประกันของบริษัทฯ <br>
-                    และลงชื่อเป็นลายลักษณ์อักษร
+                    และลงชื่อเป็นลายลักษณ์อักษร <br><br><br>
                 </div>
 
-                <div style="border-bottom: 1px dotted #ccc; width: 80%; margin: 0 auto;"></div>
                 <div class="mt-2 font-weight-bold small text-dark">ผู้สั่งซื้อ (Buyer)</div>
                 <div class="small text-muted mt-1">วันที่: ___/___/______</div>
             </div>
 
             <div class="col-6 text-center align-self-end">
-                <div style="border-bottom: 1px dotted #ccc; width: 80%; margin: 0 auto;"></div>
+                {% if company.signature %}
+                    <div style="height: 100px; display: flex; align-items: end; justify-content: center; margin-bottom: 5px;">
+                        <img src="{{ company.signature.url }}" alt="Signature" style="max-height: 120px; max-width: 80%; object-fit: contain;">
+                    </div>
+                {% else %}
+                    <div style="border-bottom: 1px dotted #ccc; width: 80%; margin: 0 auto; height: 100px;"></div>
+                {% endif %}
+
                 <div class="mt-2 font-weight-bold small text-dark">ผู้จัดการ (Authorized Signature)</div>
-                <div class="small text-muted mt-1">บริษัท นีด ช็อปปิ้ง จำกัด</div>
+                <div class="small text-muted mt-1">{{ company.name_th }}</div>
             </div>
         </div>
-
-        <div class="text-center text-muted small border-top"
-             style="position: absolute; bottom: 25mm; left: 15mm; right: 15mm; padding-top: 10px; font-size: 0.7rem;">
-            ขอบคุณที่ใช้บริการ (Thank you for your business)
-        </div>
-
     </div>
 
 </body>
