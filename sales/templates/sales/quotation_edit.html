@@ -41,92 +41,91 @@
     <div class="row">
         <div class="col-xl-4 col-lg-5">
             <div class="card shadow mb-4 border-left-primary">
-                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-user-circle"></i> ข้อมูลลูกค้า</h6>
-                </div>
-                <div class="card-body">
 
-                    <div class="p-3 mb-4 bg-light rounded border border-light">
-                        <label class="small font-weight-bold text-muted mb-2">🔍 ดึงจากฐานข้อมูลลูกค้า</label>
-                        <form method="POST" class="d-flex">
-                            {% csrf_token %}
-                            <select name="customer_id" id="customer_select_edit" class="form-control select2 mr-2" style="width: 100%;">
-                                <option value="">-- ค้นหาลูกค้า --</option>
-                                {% for c in customers %}
-                                <option value="{{ c.id }}"
-                                    data-name="{{ c.name }}"
-                                    data-tax="{{ c.tax_id|default:'' }}"
-                                    data-phone="{{ c.phone|default:'' }}"
-                                    data-address="{{ c.address|default:'' }} {{ c.sub_district|default:'' }} {{ c.district|default:'' }} {{ c.province|default:'' }} {{ c.zip_code|default:'' }}">
-                                    {{ c.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <button type="submit" name="select_customer" class="btn btn-primary btn-sm px-3" title="ดึงข้อมูลจาก Server">
-                                <i class="fas fa-download"></i>
-                            </button>
-                        </form>
+                <div class="card-header py-3 bg-white border-bottom-0 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-address-card" style="margin-right: 10px;"></i>ข้อมูลลูกค้า
+                    </h6>
+
+                    {% for c in customers %}
+                        {% if c.name == qt.customer_name %}
+                            <div class="d-flex align-items-center px-3 py-1 rounded border shadow-sm" style="background-color: #f8f9fc;">
+                                <span class="font-weight-bold text-secondary" style="font-size: 0.9rem; margin-right: 10px;">รหัสลูกค้า:</span>
+                                <span class="font-weight-bold text-primary" style="font-size: 1.1rem;">{{ c.code|default:c.id }}</span>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                <div class="card-body pt-0">
+                    <div style="display: none;">
+                         <select id="hidden_customer_list">
+                            <option value="">-- ค้นหา --</option>
+                            {% for c in customers %}
+                            <option value="{{ c.id }}" data-name="{{ c.name }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
-                    <hr class="sidebar-divider">
+                    <div class="form-group mb-3">
+                        <label class="small font-weight-bold text-muted mb-1">ชื่อลูกค้า / บริษัท</label>
+                        <input type="text" class="form-control" value="{{ qt.customer_name }}" readonly style="background-color: #f8f9fa;">
+                    </div>
 
-                    <form method="POST">
-                        {% csrf_token %}
-                        <div class="form-group">
-                            <label class="small font-weight-bold">ชื่อลูกค้า / บริษัท <span class="text-danger">*</span></label>
-                            <input type="text" name="customer_name" id="id_customer_name" class="form-control" value="{{ qt.customer_name|default:'' }}" required>
+                    <div class="form-row">
+                        <div class="col-md-6 mb-3">
+                            <label class="small font-weight-bold text-muted mb-1">เลขผู้เสียภาษี</label>
+                            <input type="text" class="form-control" value="{{ qt.customer_tax_id }}" readonly style="background-color: #f8f9fa;">
                         </div>
-
-                        <div class="form-row">
-                            <div class="col-md-6 mb-3">
-                                <label class="small font-weight-bold">เลขผู้เสียภาษี</label>
-                                <input type="text" name="customer_tax_id" id="id_customer_tax_id" class="form-control" value="{{ qt.customer_tax_id|default:'' }}">
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="small font-weight-bold">เบอร์โทรศัพท์</label>
-                                <input type="text" name="customer_phone" id="id_customer_phone" class="form-control" value="{{ qt.customer_phone|default:'' }}" placeholder="0xx-xxx-xxxx">
-                            </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small font-weight-bold text-muted mb-1">เบอร์โทรศัพท์</label>
+                            <input type="text" class="form-control" value="{{ qt.customer_phone }}" readonly style="background-color: #f8f9fa;">
                         </div>
+                    </div>
 
-                        <div class="form-group">
-                            <label class="small font-weight-bold">ที่อยู่ (เลขที่/ถนน/ซอย)</label>
-                            <textarea name="customer_address" id="id_customer_address" class="form-control" rows="2">{{ qt.customer_address|default:'' }}</textarea>
-                        </div>
+                    <div class="form-group mb-3">
+                        <label class="small font-weight-bold text-muted mb-1">ที่อยู่</label>
+                        <textarea class="form-control" rows="3" readonly style="background-color: #f8f9fa;">{{ qt.customer_address }}</textarea>
+                    </div>
 
-                        <div class="p-2 rounded" style="background-color: #f1f3f9;">
-                            <div class="form-row">
-                                <div class="col-md-6 mb-2">
-                                    <label class="small text-muted mb-1">จังหวัด</label>
-                                    <select name="customer_province" id="select_province" class="form-control form-control-sm" data-default="{{ qt.customer_province }}">
-                                        <option value="">-- เลือกจังหวัด --</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-2">
-                                    <label class="small text-muted mb-1">อำเภอ/เขต</label>
-                                    <select name="customer_district" id="select_amphure" class="form-control form-control-sm" data-default="{{ qt.customer_district }}">
-                                        <option value="">-- เลือกอำเภอ --</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-2">
-                                    <label class="small text-muted mb-1">ตำบล/แขวง</label>
-                                    <select name="customer_sub_district" id="select_tambon" class="form-control form-control-sm" data-default="{{ qt.customer_sub_district }}">
-                                        <option value="">-- เลือกตำบล --</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-2">
-                                    <label class="small text-muted mb-1">รหัสไปรษณีย์</label>
-                                    <input type="text" name="customer_zip" id="input_zipcode" class="form-control form-control-sm" value="{{ qt.customer_zip|default:'' }}">
-                                </div>
-                            </div>
-                        </div>
+                    <div style="display: none;">
+                        <select name="customer_province" id="select_province"><option value="{{ qt.customer_province }}"></option></select>
+                        <select name="customer_district" id="select_amphure"><option value="{{ qt.customer_district }}"></option></select>
+                        <select name="customer_sub_district" id="select_tambon"><option value="{{ qt.customer_sub_district }}"></option></select>
+                        <input type="text" name="customer_zip" id="input_zipcode" value="{{ qt.customer_zip }}">
+                    </div>
 
-                        <button type="submit" name="save_header" class="btn btn-primary btn-block mt-4 shadow-sm">
-                            <i class="fas fa-save"></i> บันทึกการเปลี่ยนแปลงลูกค้า
-                        </button>
-                    </form>
+                    <button type="button" id="btn_edit_customer" class="btn btn-warning btn-block shadow-sm py-2 text-dark">
+                        <i class="fas fa-user-edit mr-1"></i> แก้ไขข้อมูลลูกค้า
+                    </button>
                 </div>
             </div>
         </div>
+
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                var btnEdit = document.getElementById('btn_edit_customer');
+                if (btnEdit) {
+                    btnEdit.addEventListener('click', function() {
+                        var currentName = "{{ qt.customer_name }}";
+                        var customerId = null;
+                        var options = document.getElementById('hidden_customer_list').options;
+
+                        for (var i = 0; i < options.length; i++) {
+                            if (options[i].getAttribute('data-name') === currentName) {
+                                customerId = options[i].value;
+                                break;
+                            }
+                        }
+                        if (customerId) {
+                            window.location.href = "/customers/edit/" + customerId + "/";
+                        } else {
+                            alert("ไม่พบข้อมูลลูกค้าในระบบ");
+                        }
+                    });
+                }
+            });
+        </script>
 
         <div class="col-xl-8 col-lg-7">
             <div class="card shadow mb-4 border-bottom-success">

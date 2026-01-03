@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="container mt-4">
-    
+
     <div class="row align-items-center mb-4">
         <div class="col-md-4">
             <h3 class="fw-bold text-dark mb-0"><i class="fas fa-file-invoice text-primary me-2"></i>รายการใบเสนอราคา</h3>
@@ -11,8 +11,8 @@
         <div class="col-md-8">
             <div class="d-flex justify-content-md-end align-items-center gap-2">
                 <form method="get" class="d-flex position-relative" style="width: 300px;">
-                    <input type="text" name="q" class="form-control rounded-pill ps-4 pe-5" 
-                           placeholder="ค้นหาเลขที่ หรือ ลูกค้า..." 
+                    <input type="text" name="q" class="form-control rounded-pill ps-4 pe-5"
+                           placeholder="ค้นหาเลขที่ หรือ ลูกค้า..."
                            value="{{ search_query|default:'' }}">
                     <button type="submit" class="btn btn-link position-absolute end-0 top-50 translate-middle-y text-primary" style="text-decoration: none;">
                         <i class="fas fa-search"></i>
@@ -32,11 +32,11 @@
                 <thead class="bg-light text-secondary">
                     <tr>
                         <th class="ps-4" style="width: 15%;">เลขที่</th>
-                        <th style="width: 25%;">ลูกค้า</th>
-                        <th style="width: 12%;">วันที่</th>
+                        <th style="width: 22%;">ลูกค้า</th> <th style="width: 12%;">วันที่</th>
                         <th class="text-end" style="width: 15%;">ยอดสุทธิ</th>
-                        <th class="text-center" style="width: 20%;">ผู้ออกเอกสาร</th>
-                        <th class="text-center" style="width: 13%;">จัดการ</th>
+                        <th class="text-center" style="width: 15%;">ผู้ออกเอกสาร</th> <th class="text-center" style="width: 8%;">แก้ไข</th>
+
+                        <th class="text-center" style="width: 13%;">ดูใบเสนอราคา</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -45,7 +45,7 @@
                         <td class="ps-4 fw-bold text-primary text-truncate">{{ qt.qt_number }}</td>
                         <td class="text-truncate" title="{{ qt.customer_name }}">{{ qt.customer_name }}</td>
                         <td>{{ qt.date|date:"d M Y" }}</td>
-                        
+
                         <td class="text-end fw-bold">{{ qt.grand_total|intcomma }}</td>
 
                         <td class="text-center text-truncate text-secondary">
@@ -57,11 +57,19 @@
                         </td>
 
                         <td class="text-center">
-                            <a href="{% url 'quotation_detail' qt.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-3">ดูรายละเอียด</a>
+                            <a href="{% url 'quotation_edit' qt.id %}" class="btn btn-warning btn-sm shadow-sm text-dark" title="แก้ไขใบเสนอราคา">
+                                <i class="fas fa-pen"></i>
+                            </a>
+                        </td>
+
+                        <td class="text-center">
+                            <a href="{% url 'quotation_detail' qt.id %}" class="btn btn-info btn-sm shadow-sm text-white" title="ดูรายละเอียด">
+                                <i class="fas fa-search"></i>
+                            </a>
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center py-5 text-muted">ไม่พบข้อมูลใบเสนอราคา</td></tr>
+                        <tr><td colspan="7" class="text-center py-5 text-muted">ไม่พบข้อมูลใบเสนอราคา</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -71,7 +79,7 @@
         <div class="card-footer bg-white py-3">
             <nav aria-label="Page navigation">
                 <ul class="pagination justify-content-center mb-0">
-                    
+
                     {% if page_obj.has_previous %}
                     <li class="page-item">
                         <a class="page-link rounded-circle mx-1 border-0 text-dark bg-light" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" aria-label="Previous">

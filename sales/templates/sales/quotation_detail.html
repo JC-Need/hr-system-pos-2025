@@ -69,11 +69,17 @@
 <body>
 
     <div class="container mb-3 d-print-none text-right" style="width: 210mm;">
-        <a href="{% url 'quotation_edit' qt.id %}" class="btn btn-light text-secondary shadow-sm">
-            <i class="fas fa-arrow-left"></i> กลับไปแก้ไข
+
+        <a href="{% url 'quotation_list' %}" class="btn btn-secondary shadow-sm mr-2">
+            <i class="fas fa-chevron-left mr-1"></i> กลับหน้ารายการ
         </a>
+
+        <a href="{% url 'quotation_edit' qt.id %}" class="btn btn-light text-dark shadow-sm border">
+            <i class="fas fa-pen mr-1"></i> กลับไปแก้ไข
+        </a>
+
         <button onclick="window.print()" class="btn btn-primary shadow-sm ml-2">
-            <i class="fas fa-print"></i> พิมพ์ใบเสนอราคา
+            <i class="fas fa-print mr-1"></i> พิมพ์ใบเสนอราคา
         </button>
     </div>
 
