@@ -187,7 +187,23 @@ def quotation_detail(request, qt_id):
     qt = get_object_or_404(Quotation, pk=qt_id)
     from employees.models import CompanyInfo
     company = CompanyInfo.objects.first()
-    return render(request, 'sales/quotation_detail.html', {'qt': qt, 'company': company})
+
+    # โค้ดค้นหาลูกค้า (ที่เราเพิ่มไปก่อนหน้านี้)
+    customer_obj = None
+    if qt.customer_tax_id:
+        customer_obj = Customer.objects.filter(tax_id=qt.customer_tax_id).first()
+    if not customer_obj and qt.customer_name:
+        customer_obj = Customer.objects.filter(name=qt.customer_name).first()
+
+    # ✅ เพิ่มบรรทัดนี้: คำนวณยอดรวมสินค้า (Item Total)
+    item_total = sum(i.total_price for i in qt.items.all())
+
+    return render(request, 'sales/quotation_detail.html', {
+        'qt': qt,
+        'company': company,
+        'customer_obj': customer_obj,
+        'item_total': item_total # ✅ ส่งค่าไปที่หน้าจอ
+    })
 
 # ==========================================
 # 5. ลบรายการสินค้า (Delete Item)
